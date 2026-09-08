@@ -29,7 +29,7 @@ class Engine{
  async sync(){if(this.busy)return this.busy;this.busy=this.run();try{return await this.busy}finally{this.busy=null}}
  async run(){this.onStatus('syncing');try{
  // Seed historical rows with timestamp 0. Existing cloud rows always win ties.
- let row=await this.rpc({changes:[],seed:Object.values(this.entries).filter(e=>e.mutationId==='legacy')});this.merge(row.records);
+ let row=await this.rpc({changes:[],seed:this.read('seeded')?[]:Object.values(this.entries).filter(e=>e.mutationId==='legacy')});this.merge(row.records);this.storage.setItem(this.prefix+'seeded','true');
  for(let pass=0;pass<20;pass++){const batch=this.pending().slice(0,300);if(!batch.length)break;row=await this.rpc({changes:batch,seed:[]});this.merge(row.records);for(const e of batch)this.storage.removeItem(this.prefix+'op:'+e.mutationId);if(pass===19&&this.pending().length)throw Error('待同步队列较长，请重试');}
  this.present();this.onStatus('synced');return true;
  }catch(e){this.onStatus('error',e);throw e;}}

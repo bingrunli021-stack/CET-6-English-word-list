@@ -7,6 +7,8 @@
 <script>
 // QA clients share authentication but use independent study storage, like separate devices.
 const testClient=new URLSearchParams(location.search).get('device')||'';
+let simulatedOffline=false;
+function connectionAvailable(){return navigator.onLine&&!simulatedOffline}
 const clientPrefix=/^[a-z0-9-]{1,32}$/.test(testClient)?'qa:'+testClient+':':'';
 const studyStorage={getItem:k=>localStorage.getItem(clientPrefix+k),setItem:(k,v)=>localStorage.setItem(clientPrefix+k,v),removeItem:k=>localStorage.removeItem(clientPrefix+k),key:i=>Object.keys(localStorage).filter(k=>k.startsWith(clientPrefix))[i]?.slice(clientPrefix.length),get length(){return Object.keys(localStorage).filter(k=>k.startsWith(clientPrefix)).length}};
 
@@ -263,8 +265,8 @@ function loadState(){
 function cloudPayload(){return JSON.parse(JSON.stringify({schemaVersion:2,state,listenState,theme:state.theme||'system'}))}
 function blankPayload(){return {schemaVersion:2,state:{version:6,nextIndex:0,dailyCount:30,accent:'en-US',rate:.82,theme:'system',translationMode:'show',records:{},todayPlans:{},history:{},lastOpenedDay:null},listenState:{completed:{},notes:'',minutes:0},theme:'system'}}
 function setCloudStatus(label,mode=''){const at=currentUser&&Number(studyStorage.getItem('cet6-test3-last-sync:'+currentUser.id));const info=(currentUser?.email||'未登录')+' · '+label+' · 最后同步：'+(at?new Date(at).toLocaleString('zh-CN'):'尚未同步');const box=document.getElementById('settingsCloudInfo');if(box)box.textContent=info;document.getElementById('cloudText').textContent=label;document.getElementById('cloudDot').className='cloud-dot'+(mode?' '+mode:'');document.getElementById('syncDetail').textContent=currentUser?(label+' · 逐词同步测试版'+(syncEngine?' · 待同步记录 '+syncEngine.pending().length:'')):'未登录，数据保存在当前设备';}
-function scheduleSync(delay=600){clearTimeout(syncTimer);if(currentUser&&navigator.onLine)syncTimer=setTimeout(()=>syncNow(false),delay)}
-function markLocalChange(){if(applyingCloud)return;if(syncEngine)syncEngine.capture(cloudPayload());else guestInitial=cloudPayload();setCloudStatus(currentUser?(navigator.onLine?'待同步':'离线'):'仅本机','busy');scheduleSync()}
+function scheduleSync(delay=600){clearTimeout(syncTimer);if(currentUser&&connectionAvailable())syncTimer=setTimeout(()=>syncNow(false),delay)}
+function markLocalChange(){if(applyingCloud)return;if(syncEngine)syncEngine.capture(cloudPayload());else guestInitial=cloudPayload();setCloudStatus(currentUser?(connectionAvailable()?'待同步':'离线'):'仅本机','busy');scheduleSync()}
 function saveState(){studyStorage.setItem(KEY,JSON.stringify(state));markLocalChange()}
 function applyStudyPayload(payload){applyingCloud=true;try{
  studyStorage.setItem(THEME_KEY,payload.state.theme||payload.theme||'system');studyStorage.setItem(KEY,JSON.stringify(payload.state));studyStorage.setItem(LISTEN_KEY,JSON.stringify(payload.listenState||{}));state=loadState();listenState=loadListenState();applyTheme(state.theme);
@@ -272,7 +274,7 @@ function applyStudyPayload(payload){applyingCloud=true;try{
  if(view==='listening'){updateListenStats();const notes=document.getElementById('listenNotes');if(notes&&notes!==document.activeElement)notes.value=listenState.notes||'';document.querySelectorAll('[data-listen-id]').forEach(card=>{const done=!!listenState.completed[card.dataset.listenId];card.classList.toggle('completed',done);});}
  else{const search=document.getElementById('libSearch')?.value;render();if(view==='library'&&search){document.getElementById('libSearch').value=search;librarySearch(search)}}
  }finally{applyingCloud=false}}
-async function syncNow(showToast=false){if(!currentUser||!syncEngine||!navigator.onLine){if(showToast)toast(currentUser?'当前离线，恢复网络后自动同步':'请先登录');return false}try{await syncEngine.sync();retryDelay=1500;if(showToast)toast('云端同步完成');return true}catch(e){console.warn('CET6 sync:',e.message);setCloudStatus('同步失败','busy');scheduleSync(retryDelay);retryDelay=Math.min(30000,retryDelay*2);if(showToast)toast('网络暂不可用，本机记录已保留');return false}}
+async function syncNow(showToast=false){if(!currentUser||!syncEngine||!connectionAvailable()){if(showToast)toast(currentUser?'当前离线，恢复网络后自动同步':'请先登录');return false}try{await syncEngine.sync();retryDelay=1500;if(showToast)toast('云端同步完成');return true}catch(e){console.warn('CET6 sync:',e.message);setCloudStatus('同步失败','busy');scheduleSync(retryDelay);retryDelay=Math.min(30000,retryDelay*2);if(showToast)toast('网络暂不可用，本机记录已保留');return false}}
 function openAuth(){document.getElementById('authModal').classList.add('show');updateAuthPanel()}
 function closeAuth(){document.getElementById('authModal').classList.remove('show')}
 function updateAuthPanel(){const signed=!!currentUser;document.getElementById('signedOutPanel').hidden=signed;document.getElementById('signedInPanel').hidden=!signed;if(signed)document.getElementById('accountEmail').textContent=currentUser.email||'已登录'}
@@ -285,7 +287,7 @@ async function bindUser(user){if(user&&user.id===currentUser?.id&&syncEngine)ret
  const backupKey='test3:cet6:v2:pre-upgrade:'+user.id;if(!studyStorage.getItem(backupKey))studyStorage.setItem(backupKey,JSON.stringify(initial));
  studyStorage.setItem('test3:cet6:v2:owner',user.id);
  syncEngine=new CET6Sync.Engine({storage:studyStorage,scope:user.id,initial,
-  rpc:async args=>{if(authGeneration!==generation)throw Error('Account changed');const {data,error}=await dbClient.rpc('cet6_sync_test_v3',args);if(error)throw error;if(authGeneration!==generation)throw Error('Account changed');return data;},
+  rpc:async args=>{if(!connectionAvailable())throw Error('离线');if(authGeneration!==generation)throw Error('Account changed');const {data,error}=await dbClient.rpc('cet6_sync_test_v3',args);if(error)throw error;if(authGeneration!==generation)throw Error('Account changed');return data;},
   onApply:payload=>{if(authGeneration===generation)applyStudyPayload(payload)},
   onStatus:status=>{if(authGeneration!==generation)return;if(status==='synced')studyStorage.setItem('cet6-test3-last-sync:'+user.id,String(Date.now()));const labels={pending:'待同步',syncing:'正在同步',synced:'已同步',error:'同步失败'};setCloudStatus(labels[status],status==='synced'?'online':'busy')}
  });
@@ -408,7 +410,7 @@ document.getElementById('dailyCount').oninput=e=>document.getElementById('dailyC
 function saveSettings(){state.theme=document.getElementById('themeMode').value;state.translationMode=document.getElementById('translationMode').value;translationOverrides.clear();phraseTranslationOverrides.clear();state.dailyCount=Number(document.getElementById('dailyCount').value);state.accent=document.getElementById('voiceAccent').value;state.rate=Number(document.getElementById('speechRate').value);const k=dayKey();const p=state.todayPlans[k];if(p&&p.completed===0){p.count=Math.min(state.dailyCount,FALLBACK_WORDS.length-p.start);p.indices=Array.from({length:p.count},(_,i)=>p.start+i)}saveState();applyTheme(state.theme);closeSettings();toast('设置已保存');render()}
 function speakBatch(){const p=getPlan();let n=0;speechSynthesis.cancel();function go(){if(n>=p.indices.length)return;const u=new SpeechSynthesisUtterance(getWord(p.indices[n++]).word);u.lang=state.accent;u.rate=state.rate;u.onend=()=>setTimeout(go,180);speechSynthesis.speak(u)}go()}
 function exportProgress(){const bundle={...state,listenState,syncMetadata:syncEngine?.entries||{},exportedAt:new Date().toISOString()};const blob=new Blob([JSON.stringify(bundle,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='CET6学习进度_'+dayKey()+'.json';a.click();URL.revokeObjectURL(a.href)}
-function importProgress(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const raw=JSON.parse(r.result),imported=raw.state||raw;if(!imported.records||typeof imported.records!=='object'||Array.isArray(imported.records))throw Error();const clean=JSON.parse(JSON.stringify(imported));delete clean.listenState;delete clean.syncMetadata;delete clean.exportedAt;const payload={state:{...state,...clean,records:{...state.records,...clean.records},history:{...state.history,...clean.history},todayPlans:{...state.todayPlans,...clean.todayPlans}},listenState:{...listenState,...raw.listenState}};syncEngine.importPayload(payload);scheduleSync(0);toast('备份已导入，联网登录后自动同步');closeSettings()}catch(x){toast('进度文件无效')}};r.readAsText(f);e.target.value=''}
+function importProgress(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const raw=JSON.parse(r.result),imported=raw.state||raw;if(!imported.records||typeof imported.records!=='object'||Array.isArray(imported.records))throw Error();const clean=JSON.parse(JSON.stringify(imported));delete clean.listenState;delete clean.syncMetadata;delete clean.exportedAt;const payload={state:clean,listenState:raw.listenState||{}};syncEngine.importPayload(payload);scheduleSync(0);toast('备份已导入，联网登录后自动同步');closeSettings()}catch(x){toast('进度文件无效')}};r.readAsText(f);e.target.value=''}
 function resetProgress(){if(!confirm('确定清空全部学习进度吗？登录状态下也会同步清空到其他设备，请先导出备份。'))return;const payload=blankPayload();applyStudyPayload(payload);if(syncEngine){syncEngine.replace(payload);scheduleSync(0)}else{guestInitial=payload;}closeSettings();toast('已清空本机进度');}
 async function enrich(){try{const res=await fetch(REMOTE_JSON,{cache:'force-cache'});if(!res.ok)throw Error();const data=await res.json();for(const x of data){enriched.set(String(x.word||'').toLowerCase(),{phrases:cleanPhrases(x.word,x.phrases||[])})}render()}catch(e){console.info('离线模式：使用已校正的嵌入词义') }}
 let activeDay=dayKey();
@@ -422,6 +424,7 @@ addEventListener('focus',()=>scheduleSync(0));
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)scheduleSync(0)});
 setInterval(()=>{if(currentUser&&!document.hidden)scheduleSync(0)},15000);
 setInterval(refreshForDateChange,60000);
+if(clientPrefix){const qaButton=document.createElement('button');qaButton.className='btn';qaButton.textContent='测试：模拟断网';qaButton.onclick=()=>{simulatedOffline=!simulatedOffline;qaButton.textContent=simulatedOffline?'测试：恢复联网':'测试：模拟断网';if(simulatedOffline)setCloudStatus('离线','busy');else scheduleSync(0)};document.querySelector('.top-actions').appendChild(qaButton);}
 guestInitial=cloudPayload();syncEngine=new CET6Sync.Engine({storage:studyStorage,scope:studyStorage.getItem('test3:cet6:v2:owner')||'guest',initial:guestInitial,rpc:async()=>{throw Error('未登录')},onApply:applyStudyPayload});applyStudyPayload(syncEngine.current);applyTheme(state.theme||'system');render();enrich();initAuth();
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});</script></body></html>
