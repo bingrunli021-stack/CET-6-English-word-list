@@ -22,3 +22,5 @@ for delete to authenticated using ((select auth.uid()) = user_id);
 
 revoke all on table public.cet6_user_state from anon;
 grant select, insert, update, delete on table public.cet6_user_state to authenticated;
+
+alter publication supabase_realtime add table public.cet6_user_state;
