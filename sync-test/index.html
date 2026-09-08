@@ -5,9 +5,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
 <meta id="themeColorMeta" name="theme-color" content="#0a0f13" />
 <script>
+// QA clients share authentication but use independent study storage, like separate devices.
+const testClient=new URLSearchParams(location.search).get('device')||'';
+const clientPrefix=/^[a-z0-9-]{1,32}$/.test(testClient)?'qa:'+testClient+':':'';
+const studyStorage={getItem:k=>localStorage.getItem(clientPrefix+k),setItem:(k,v)=>localStorage.setItem(clientPrefix+k,v),removeItem:k=>localStorage.removeItem(clientPrefix+k),key:i=>Object.keys(localStorage).filter(k=>k.startsWith(clientPrefix))[i]?.slice(clientPrefix.length),get length(){return Object.keys(localStorage).filter(k=>k.startsWith(clientPrefix)).length}};
+
 (function(){
   try{
-    const saved=localStorage.getItem('test3:cet6_theme_v1')||'system';
+    const saved=studyStorage.getItem('test3:cet6_theme_v1')||'system';
     const resolved=saved==='system'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):saved;
     document.documentElement.dataset.theme=resolved;
     document.documentElement.dataset.themeMode=saved;
@@ -227,11 +232,11 @@ const SYNC_META_KEY='cet6_sync_meta_v1';
 const DEVICE_KEY='test3:cet6_device_id_v1';
 const SUPABASE_URL='https://bihhvfccunyjicdxwiym.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_M5quBJZBbnMBrST2fSkHHw_Dw6XJ2is';
-const deviceId=localStorage.getItem(DEVICE_KEY)||crypto.randomUUID();
-localStorage.setItem(DEVICE_KEY,deviceId);
+const deviceId=studyStorage.getItem(DEVICE_KEY)||crypto.randomUUID();
+studyStorage.setItem(DEVICE_KEY,deviceId);
 const dbClient=window.supabase?.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'cet6-test3-auth'}});
 let currentUser=null,syncTimer=null,applyingCloud=false,realtimeChannel=null,syncEngine=null,authGeneration=0,retryDelay=1500;
-const priorOwner=localStorage.getItem('test3:cet6:v2:owner');
+const priorOwner=studyStorage.getItem('test3:cet6:v2:owner');
 let guestInitial=null;
 let state=loadState();
 let testState=null;
@@ -241,7 +246,7 @@ const phraseTranslationOverrides=new Set();
 function resolveTheme(mode){return mode==='system'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):mode}
 function applyTheme(mode=state.theme||'system'){
   const safe=['dark','light','system'].includes(mode)?mode:'system',resolved=resolveTheme(safe);
-  state.theme=safe;localStorage.setItem(THEME_KEY,safe);document.documentElement.dataset.theme=resolved;document.documentElement.dataset.themeMode=safe;
+  state.theme=safe;studyStorage.setItem(THEME_KEY,safe);document.documentElement.dataset.theme=resolved;document.documentElement.dataset.themeMode=safe;
   const meta=document.getElementById('themeColorMeta');if(meta)meta.content=resolved==='light'?'#f8fafb':'#0a0f13';
   const btn=document.getElementById('themeQuickBtn');if(btn){btn.textContent=resolved==='light'?'☀':'☾';btn.title=`当前：${safe==='system'?'跟随系统':resolved==='light'?'浅色':'深色'}，点击切换`}
   document.querySelectorAll('.theme-choice').forEach(x=>x.classList.toggle('active',x.dataset.themeMode===safe));
@@ -252,17 +257,17 @@ matchMedia('(prefers-color-scheme: light)').addEventListener?.('change',()=>{if(
 
 
 function loadState(){
- const base={version:6,nextIndex:0,dailyCount:30,accent:'en-US',rate:.82,theme:localStorage.getItem(THEME_KEY)||'system',translationMode:'show',records:{},todayPlans:{},history:{},lastOpenedDay:null};
- try{const saved={...base,...JSON.parse(localStorage.getItem(KEY)||'{}')};if((saved.version||0)<4){const nr={};for(const [oi,r] of Object.entries(saved.records||{})){const ow=RAW_WORDS[Number(oi)]?.word?.toLowerCase();const ni=FALLBACK_WORDS.findIndex(x=>x.word.toLowerCase()===ow);if(ni>=0){const prev=nr[ni];nr[ni]=prev&&((prev.level||0)>(r.level||0))?prev:r}}const seen=new Set(RAW_WORDS.slice(0,Number(saved.nextIndex)||0).map(x=>x.word.toLowerCase()));saved.records=nr;saved.nextIndex=Math.min(seen.size,FALLBACK_WORDS.length);saved.todayPlans={};saved.version=4}saved.version=6;saved.records=saved.records&&typeof saved.records==='object'?saved.records:{};saved.todayPlans=saved.todayPlans&&typeof saved.todayPlans==='object'?saved.todayPlans:{};saved.history=saved.history&&typeof saved.history==='object'?saved.history:{};saved.nextIndex=Math.max(0,Math.min(Number(saved.nextIndex)||0,FALLBACK_WORDS.length));saved.dailyCount=Math.max(1,Math.min(Number(saved.dailyCount)||30,60));saved.translationMode=['show','hide'].includes(saved.translationMode)?saved.translationMode:'show';saved.theme=localStorage.getItem(THEME_KEY)||saved.theme||'system';return saved}catch(e){return base}
+ const base={version:6,nextIndex:0,dailyCount:30,accent:'en-US',rate:.82,theme:studyStorage.getItem(THEME_KEY)||'system',translationMode:'show',records:{},todayPlans:{},history:{},lastOpenedDay:null};
+ try{const saved={...base,...JSON.parse(studyStorage.getItem(KEY)||'{}')};if((saved.version||0)<4){const nr={};for(const [oi,r] of Object.entries(saved.records||{})){const ow=RAW_WORDS[Number(oi)]?.word?.toLowerCase();const ni=FALLBACK_WORDS.findIndex(x=>x.word.toLowerCase()===ow);if(ni>=0){const prev=nr[ni];nr[ni]=prev&&((prev.level||0)>(r.level||0))?prev:r}}const seen=new Set(RAW_WORDS.slice(0,Number(saved.nextIndex)||0).map(x=>x.word.toLowerCase()));saved.records=nr;saved.nextIndex=Math.min(seen.size,FALLBACK_WORDS.length);saved.todayPlans={};saved.version=4}saved.version=6;saved.records=saved.records&&typeof saved.records==='object'?saved.records:{};saved.todayPlans=saved.todayPlans&&typeof saved.todayPlans==='object'?saved.todayPlans:{};saved.history=saved.history&&typeof saved.history==='object'?saved.history:{};saved.nextIndex=Math.max(0,Math.min(Number(saved.nextIndex)||0,FALLBACK_WORDS.length));saved.dailyCount=Math.max(1,Math.min(Number(saved.dailyCount)||30,60));saved.translationMode=['show','hide'].includes(saved.translationMode)?saved.translationMode:'show';saved.theme=studyStorage.getItem(THEME_KEY)||saved.theme||'system';return saved}catch(e){return base}
 }
 function cloudPayload(){return JSON.parse(JSON.stringify({schemaVersion:2,state,listenState,theme:state.theme||'system'}))}
 function blankPayload(){return {schemaVersion:2,state:{version:6,nextIndex:0,dailyCount:30,accent:'en-US',rate:.82,theme:'system',translationMode:'show',records:{},todayPlans:{},history:{},lastOpenedDay:null},listenState:{completed:{},notes:'',minutes:0},theme:'system'}}
-function setCloudStatus(label,mode=''){const at=currentUser&&Number(localStorage.getItem('cet6-test3-last-sync:'+currentUser.id));const info=(currentUser?.email||'未登录')+' · '+label+' · 最后同步：'+(at?new Date(at).toLocaleString('zh-CN'):'尚未同步');const box=document.getElementById('settingsCloudInfo');if(box)box.textContent=info;document.getElementById('cloudText').textContent=label;document.getElementById('cloudDot').className='cloud-dot'+(mode?' '+mode:'');document.getElementById('syncDetail').textContent=currentUser?(label+' · 逐词同步测试版'+(syncEngine?' · 待同步记录 '+syncEngine.pending().length:'')):'未登录，数据保存在当前设备';}
+function setCloudStatus(label,mode=''){const at=currentUser&&Number(studyStorage.getItem('cet6-test3-last-sync:'+currentUser.id));const info=(currentUser?.email||'未登录')+' · '+label+' · 最后同步：'+(at?new Date(at).toLocaleString('zh-CN'):'尚未同步');const box=document.getElementById('settingsCloudInfo');if(box)box.textContent=info;document.getElementById('cloudText').textContent=label;document.getElementById('cloudDot').className='cloud-dot'+(mode?' '+mode:'');document.getElementById('syncDetail').textContent=currentUser?(label+' · 逐词同步测试版'+(syncEngine?' · 待同步记录 '+syncEngine.pending().length:'')):'未登录，数据保存在当前设备';}
 function scheduleSync(delay=600){clearTimeout(syncTimer);if(currentUser&&navigator.onLine)syncTimer=setTimeout(()=>syncNow(false),delay)}
 function markLocalChange(){if(applyingCloud)return;if(syncEngine)syncEngine.capture(cloudPayload());else guestInitial=cloudPayload();setCloudStatus(currentUser?(navigator.onLine?'待同步':'离线'):'仅本机','busy');scheduleSync()}
-function saveState(){localStorage.setItem(KEY,JSON.stringify(state));markLocalChange()}
+function saveState(){studyStorage.setItem(KEY,JSON.stringify(state));markLocalChange()}
 function applyStudyPayload(payload){applyingCloud=true;try{
- localStorage.setItem(THEME_KEY,payload.state.theme||payload.theme||'system');localStorage.setItem(KEY,JSON.stringify(payload.state));localStorage.setItem(LISTEN_KEY,JSON.stringify(payload.listenState||{}));state=loadState();listenState=loadListenState();applyTheme(state.theme);
+ studyStorage.setItem(THEME_KEY,payload.state.theme||payload.theme||'system');studyStorage.setItem(KEY,JSON.stringify(payload.state));studyStorage.setItem(LISTEN_KEY,JSON.stringify(payload.listenState||{}));state=loadState();listenState=loadListenState();applyTheme(state.theme);
  // Do not interrupt an active listening player or move the notes cursor on acknowledgements.
  if(view==='listening'){updateListenStats();const notes=document.getElementById('listenNotes');if(notes&&notes!==document.activeElement)notes.value=listenState.notes||'';document.querySelectorAll('[data-listen-id]').forEach(card=>{const done=!!listenState.completed[card.dataset.listenId];card.classList.toggle('completed',done);});}
  else{const search=document.getElementById('libSearch')?.value;render();if(view==='library'&&search){document.getElementById('libSearch').value=search;librarySearch(search)}}
@@ -273,22 +278,22 @@ function closeAuth(){document.getElementById('authModal').classList.remove('show
 function updateAuthPanel(){const signed=!!currentUser;document.getElementById('signedOutPanel').hidden=signed;document.getElementById('signedInPanel').hidden=!signed;if(signed)document.getElementById('accountEmail').textContent=currentUser.email||'已登录'}
 function subscribeRealtime(){if(realtimeChannel)dbClient.removeChannel(realtimeChannel);if(!currentUser)return;realtimeChannel=dbClient.channel('test3:cet6-v2-'+currentUser.id+'-'+deviceId).on('postgres_changes',{event:'*',schema:'public',table:'cet6_sync_test_records',filter:'user_id=eq.'+currentUser.id},()=>scheduleSync(100)).subscribe(status=>{if(status==='SUBSCRIBED')scheduleSync(0)});}
 async function bindUser(user){if(user&&user.id===currentUser?.id&&syncEngine)return;const generation=++authGeneration;clearTimeout(syncTimer);if(realtimeChannel){dbClient?.removeChannel(realtimeChannel);realtimeChannel=null;}
- const owner=localStorage.getItem('test3:cet6:v2:owner');const oldEngine=syncEngine;currentUser=user;syncEngine=null;updateAuthPanel();
- if(!user){syncEngine=new CET6Sync.Engine({storage:localStorage,scope:'guest',initial:blankPayload(),rpc:async()=>{throw Error('未登录')},onApply:applyStudyPayload});applyStudyPayload(syncEngine.current);setCloudStatus('登录');return;}
+ const owner=studyStorage.getItem('test3:cet6:v2:owner');const oldEngine=syncEngine;currentUser=user;syncEngine=null;updateAuthPanel();
+ if(!user){syncEngine=new CET6Sync.Engine({storage:studyStorage,scope:'guest',initial:blankPayload(),rpc:async()=>{throw Error('未登录')},onApply:applyStudyPayload});applyStudyPayload(syncEngine.current);setCloudStatus('登录');return;}
  const initial=owner&&owner!==user.id?blankPayload():cloudPayload();
  // Keep the pre-upgrade copy separate from cloud credentials and from public code.
- const backupKey='test3:cet6:v2:pre-upgrade:'+user.id;if(!localStorage.getItem(backupKey))localStorage.setItem(backupKey,JSON.stringify(initial));
- localStorage.setItem('test3:cet6:v2:owner',user.id);
- syncEngine=new CET6Sync.Engine({storage:localStorage,scope:user.id,initial,
+ const backupKey='test3:cet6:v2:pre-upgrade:'+user.id;if(!studyStorage.getItem(backupKey))studyStorage.setItem(backupKey,JSON.stringify(initial));
+ studyStorage.setItem('test3:cet6:v2:owner',user.id);
+ syncEngine=new CET6Sync.Engine({storage:studyStorage,scope:user.id,initial,
   rpc:async args=>{if(authGeneration!==generation)throw Error('Account changed');const {data,error}=await dbClient.rpc('cet6_sync_test_v3',args);if(error)throw error;if(authGeneration!==generation)throw Error('Account changed');return data;},
   onApply:payload=>{if(authGeneration===generation)applyStudyPayload(payload)},
-  onStatus:status=>{if(authGeneration!==generation)return;if(status==='synced')localStorage.setItem('cet6-test3-last-sync:'+user.id,String(Date.now()));const labels={pending:'待同步',syncing:'正在同步',synced:'已同步',error:'同步失败'};setCloudStatus(labels[status],status==='synced'?'online':'busy')}
+  onStatus:status=>{if(authGeneration!==generation)return;if(status==='synced')studyStorage.setItem('cet6-test3-last-sync:'+user.id,String(Date.now()));const labels={pending:'待同步',syncing:'正在同步',synced:'已同步',error:'同步失败'};setCloudStatus(labels[status],status==='synced'?'online':'busy')}
  });
  if(oldEngine?.scope==='guest')syncEngine.adopt(oldEngine.entries);applyStudyPayload(syncEngine.current);subscribeRealtime();await syncNow(false);
 }
 async function signIn(){if(!dbClient){toast('登录组件未加载，请联网刷新');return}const email=document.getElementById('authEmail').value.trim(),password=document.getElementById('authPassword').value;if(!email||!password){toast('请输入邮箱和密码');return}try{const {data,error}=await dbClient.auth.signInWithPassword({email,password});if(error)throw error;document.getElementById('authPassword').value='';closeAuth();await bindUser(data.user);toast('登录成功')}catch(e){toast(e.message==='Invalid login credentials'?'邮箱或密码错误':e.message)}}
 async function signUp(){if(!dbClient){toast('请联网刷新后重试');return}const email=document.getElementById('authEmail').value.trim(),password=document.getElementById('authPassword').value;if(!email||password.length<6){toast('请输入邮箱和至少 6 位密码');return}try{const {data,error}=await dbClient.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});if(error)throw error;document.getElementById('authPassword').value='';toast(data.session?'注册成功':'请打开邮箱完成验证')}catch(e){toast(e.message)}}
-async function signOut(){if(!dbClient)return;const {error}=await dbClient.auth.signOut({scope:'local'});if(error){toast('退出失败，请重试');return;}await bindUser(null);localStorage.removeItem('test3:cet6:v2:owner');guestInitial=blankPayload();applyStudyPayload(guestInitial);toast('已退出，账户的本地待同步记录已保留')}
+async function signOut(){if(!dbClient)return;const {error}=await dbClient.auth.signOut({scope:'local'});if(error){toast('退出失败，请重试');return;}await bindUser(null);studyStorage.removeItem('test3:cet6:v2:owner');guestInitial=blankPayload();applyStudyPayload(guestInitial);toast('已退出，账户的本地待同步记录已保留')}
 async function initAuth(){if(!dbClient){setCloudStatus('离线模式','busy');return}dbClient.auth.onAuthStateChange((event,session)=>{setTimeout(()=>{if(event==='SIGNED_OUT'){bindUser(null);}else if(session?.user)bindUser(session.user);},0)});try{const {data,error}=await dbClient.auth.getSession();if(error)throw error;if(data.session)await bindUser(data.session.user);else setCloudStatus('登录')}catch(e){setCloudStatus('登录待重试','busy')}}
 function isTranslationVisible(i){return translationOverrides.has(i)?translationOverrides.get(i):state.translationMode!=='hide'}
 function isPhraseTranslationVisible(i,j){return isTranslationVisible(i)||phraseTranslationOverrides.has(`${i}:${j}`)}
@@ -311,7 +316,7 @@ function getPlan(){
  const malformed=!p||!Array.isArray(p.indices)||p.indices.some(i=>!Number.isInteger(i)||i<0||i>=FALLBACK_WORDS.length);
  if(malformed){const start=state.nextIndex,count=Math.min(state.dailyCount,FALLBACK_WORDS.length-start);p={start,count,completed:0,indices:Array.from({length:count},(_,i)=>start+i),mode:'stable-v2'};state.todayPlans[k]=p;}
  // Rendering is a local projection, never a cloud edit or a new timestamp.
- localStorage.setItem(KEY,JSON.stringify(state));return p;
+ studyStorage.setItem(KEY,JSON.stringify(state));return p;
 }
 function rec(i){return state.records[i]||{level:0,status:'new',learnedAt:null,due:null,wrong:0}}
 function dueIndices(){const k=dayKey();return Object.keys(state.records).map(Number).filter(i=>state.records[i].due&&state.records[i].due<=k&&state.records[i].status!=='new').sort((a,b)=>(state.records[a].due||'').localeCompare(state.records[b].due||''))}
@@ -374,8 +379,8 @@ const LISTENING_EXAMS=[
 ];
 let listenState=loadListenState();
 let listeningUI={a:null,b:null,loop:false,url:null,timer:null,remain:1200};
-function loadListenState(){try{return {...{completed:{},notes:'',minutes:0},...JSON.parse(localStorage.getItem(LISTEN_KEY)||'{}')}}catch(e){return {completed:{},notes:'',minutes:0}}}
-function saveListenState(){localStorage.setItem(LISTEN_KEY,JSON.stringify(listenState));markLocalChange()}
+function loadListenState(){try{return {...{completed:{},notes:'',minutes:0},...JSON.parse(studyStorage.getItem(LISTEN_KEY)||'{}')}}catch(e){return {completed:{},notes:'',minutes:0}}}
+function saveListenState(){studyStorage.setItem(LISTEN_KEY,JSON.stringify(listenState));markLocalChange()}
 function completedListeningCount(){return Object.values(listenState.completed||{}).filter(Boolean).length}
 function toggleListeningDone(id,btn){listenState.completed[id]=!listenState.completed[id];saveListenState();const card=btn.closest('.exam-card');card?.classList.toggle('completed',listenState.completed[id]);btn.textContent=listenState.completed[id]?'✓ 已完成':'标记完成';updateListenStats();toast(listenState.completed[id]?'已记录本套训练':'已取消完成记录')}
 function updateListenStats(){const a=document.getElementById('listenCompleted');if(a)a.textContent=completedListeningCount();const b=document.getElementById('listenMinutes');if(b)b.textContent=Math.round(listenState.minutes||0)}
@@ -417,6 +422,6 @@ addEventListener('focus',()=>scheduleSync(0));
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)scheduleSync(0)});
 setInterval(()=>{if(currentUser&&!document.hidden)scheduleSync(0)},15000);
 setInterval(refreshForDateChange,60000);
-guestInitial=cloudPayload();syncEngine=new CET6Sync.Engine({storage:localStorage,scope:localStorage.getItem('test3:cet6:v2:owner')||'guest',initial:guestInitial,rpc:async()=>{throw Error('未登录')},onApply:applyStudyPayload});applyStudyPayload(syncEngine.current);applyTheme(state.theme||'system');render();enrich();initAuth();
+guestInitial=cloudPayload();syncEngine=new CET6Sync.Engine({storage:studyStorage,scope:studyStorage.getItem('test3:cet6:v2:owner')||'guest',initial:guestInitial,rpc:async()=>{throw Error('未登录')},onApply:applyStudyPayload});applyStudyPayload(syncEngine.current);applyTheme(state.theme||'system');render();enrich();initAuth();
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});</script></body></html>
