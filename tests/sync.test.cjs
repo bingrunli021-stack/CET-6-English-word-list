@@ -1,0 +1,16 @@
+const assert=require('node:assert/strict');const {Engine,newer}=require('../sync-test/sync-engine');
+class Storage{constructor(){this.m=new Map()}get length(){return this.m.size}key(i){return [...this.m.keys()][i]}getItem(k){return this.m.get(k)||null}setItem(k,v){this.m.set(k,v)}removeItem(k){this.m.delete(k)}}
+const copy=x=>JSON.parse(JSON.stringify(x));const blank=()=>({state:{version:6,nextIndex:0,dailyCount:30,theme:'system',records:{},history:{},todayPlans:{}},listenState:{completed:{},notes:'',minutes:0}});
+const server={};let online=true;let clock=1000;let seq=0;
+async function rpc({changes,seed}){if(!online)throw Error('offline');for(const e of seed)if(!server[e.key])server[e.key]=copy(e);for(const e of changes)if(newer(e,server[e.key]))server[e.key]=copy(e);return {records:copy(Object.values(server))}}
+const create=(storage=new Storage(),scope='u')=>new Engine({storage,scope,initial:blank(),rpc,now:()=>++clock,id:()=>String(++seq).padStart(8,'0')});
+function edit(e,id,status){const p=copy(e.current);p.state.records[id]={status,level:status==='done'?2:1,due:status==='done'?'2026-09-10':'2026-09-09',wrong:0,learnedAt:'2026-09-08'};e.capture(p)}
+(async()=>{const a=create(),b=create();await a.sync();await b.sync();edit(a,'1','done');await a.sync();await b.sync();assert.equal(b.current.state.records[1].status,'done');console.log('PASS A -> B');
+edit(a,'2','done');edit(b,'3','hard');await Promise.all([a.sync(),b.sync()]);await a.sync();await b.sync();assert.equal(a.current.state.records[3].status,'hard');assert.equal(b.current.state.records[2].status,'done');console.log('PASS concurrent different words');
+edit(a,'4','hard');edit(b,'4','done');await b.sync();await a.sync();assert.equal(a.current.state.records[4].status,'done');assert.equal(a.current.state.records[4].due,'2026-09-10');console.log('PASS late arriving older word loses atomically');
+online=false;edit(a,'5','done');await assert.rejects(a.sync());const resumed=create(a.storage);assert.equal(resumed.current.state.records[5].status,'done');online=true;await resumed.sync();await b.sync();assert.equal(b.current.state.records[5].status,'done');console.log('PASS offline queue survives reload and reconnect');
+const imported=copy(resumed.current);imported.state.records[6]={status:'hard',level:1};imported.listenState.notes='JSON恢复测试';resumed.importPayload(imported);await resumed.sync();await b.sync();assert.equal(b.current.state.records[6].status,'hard');assert.equal(b.current.listenState.notes,'JSON恢复测试');console.log('PASS JSON import');
+const relog=create(new Storage());await relog.sync();assert.equal(relog.current.state.records[5].status,'done');assert.equal(relog.current.listenState.notes,'JSON恢复测试');console.log('PASS new local session restoration (engine only)');
+const c=create();let p=blank();p.state.records[8]={status:'done',level:1};c.capture(p);c.rpc=async args=>{const row=await rpc(args);if(args.changes.length){edit(c,'9','done');c.rpc=rpc}return row};await c.sync();await b.sync();assert.equal(b.current.state.records[9].status,'done');console.log('PASS edits during network request');
+const empty=create();await empty.sync();assert.equal(empty.current.state.records[1].status,'done');console.log('PASS opening empty device preserves cloud');
+})().catch(e=>{console.error(e);process.exit(1)});
