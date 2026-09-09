@@ -323,9 +323,10 @@ function normalizeNextIndex(){
 }
 function calendarStartFor(){return state.nextIndex;}
 function getPlan(){
- const k=dayKey();let p=state.todayPlans[k];
+ const k=dayKey();normalizeNextIndex();let p=state.todayPlans[k];
  const malformed=!p||!Array.isArray(p.indices)||p.indices.some(i=>!Number.isInteger(i)||i<0||i>=FALLBACK_WORDS.length);
- if(malformed){const start=state.nextIndex,count=Math.min(state.dailyCount,FALLBACK_WORDS.length-start);p={start,count,completed:0,indices:Array.from({length:count},(_,i)=>start+i),mode:'stable-v2'};state.todayPlans[k]=p;}
+ const stale=!malformed&&p.indices.length>0&&p.indices.every(i=>{const r=state.records[i];return r?.learnedAt&&r.learnedAt<k;});
+ if(malformed||stale){const start=state.nextIndex,count=Math.min(state.dailyCount,FALLBACK_WORDS.length-start);p={start,count,completed:0,indices:Array.from({length:count},(_,i)=>start+i),mode:'stable-v2'};state.todayPlans[k]=p;}
  // Rendering is a local projection, never a cloud edit or a new timestamp.
  studyStorage.setItem(KEY,JSON.stringify(state));return p;
 }
