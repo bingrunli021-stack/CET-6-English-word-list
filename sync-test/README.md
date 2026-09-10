@@ -9,6 +9,10 @@
 
 自动审计参考 ECDICT 的考试标签、词频和中英文释义。ECDICT 采用 MIT License，Copyright (c) 2025 Linwei。当前版本没有获得新东方、星火英语或华研最新版词汇书的完整内容，因此不将校订结果标注为三家教辅原文或三方一致译文；收到合法提供的对应材料后可继续逐词对照。
 
+## 模糊单词专项
+
+底部“模糊”入口直接读取现有 `records[*].status === 'hard'` 的词，不新增或复制学习进度。它不受复习到期日限制，按累计错误次数优先展示，每轮最多显示 20 个并在处理后自动补位。“这次记住了”会移出模糊清单并延长复习间隔；“仍然模糊”会保留该词、增加一次错误并安排明天复习，同时本轮先进入下一个词。登录后这些变化沿用现有逐词云同步。
+
 ## 数据结构
 `public.cet6_sync_test_records`：联合主键 `(user_id,key)`；字段 `value jsonb`、`updated_at bigint`（编辑时毫秒）、`mutation_id text`（相同时刻稳定排序）、`deleted boolean`（删除标记）、`received_at timestamptz`。
 `key` 是 JSON 路径：每个单词一行，history/todayPlans 每日期一行，听力完成项每套一行；其余设置分别一行。单词状态、等级、复习日期等作为整体提交。笔记为一条记录。
