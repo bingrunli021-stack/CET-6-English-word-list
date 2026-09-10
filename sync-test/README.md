@@ -3,6 +3,12 @@
 测试地址：https://bingrunli021-stack.github.io/CET-6-English-word-list/sync-test/
 现有根目录网站及旧 Sites 地址保持原样。测试页、登录会话、学习缓存、同步队列和云端数据表均独立。
 
+## 词义校订
+
+5651 条原始记录合并为 3991 个不重复词头。`translations-reviewed.js` 为每个词头提供经过统一格式清理和质量检查的主释义；常见多义词、错词性、错译和过窄释义优先人工修正，原始重复释义仍保留在学习卡片中供展开核对。
+
+自动审计参考 ECDICT 的考试标签、词频和中英文释义。ECDICT 采用 MIT License，Copyright (c) 2025 Linwei。当前版本没有获得新东方、星火英语或华研最新版词汇书的完整内容，因此不将校订结果标注为三家教辅原文或三方一致译文；收到合法提供的对应材料后可继续逐词对照。
+
 ## 数据结构
 `public.cet6_sync_test_records`：联合主键 `(user_id,key)`；字段 `value jsonb`、`updated_at bigint`（编辑时毫秒）、`mutation_id text`（相同时刻稳定排序）、`deleted boolean`（删除标记）、`received_at timestamptz`。
 `key` 是 JSON 路径：每个单词一行，history/todayPlans 每日期一行，听力完成项每套一行；其余设置分别一行。单词状态、等级、复习日期等作为整体提交。笔记为一条记录。
@@ -17,7 +23,7 @@
 测试网址不能直接读取旧 Sites 域名的浏览器数据，需要通过 JSON 转移。
 
 ## 验证
-`node tests/sync.test.cjs`：8项同步引擎回归通过：A→B、不同词并发、同词旧操作晚到、断网重载补传、JSON导入、引擎会话重建、请求期间编辑、空设备首次打开。
+`node --test tests/*.test.cjs`：同步引擎 8 项回归，以及 3991 个校订词头的完整性、格式、代表性错译修正与离线缓存检查。
 真实 Supabase 事务测试：RPC条件合并、新旧冲突、不同词保留、空种子保护、跨账户读取隔离通过；全部测试写入回滚。
 真实 Supabase + 三个独立学习存储的浏览器客户端验收已通过：A→B、不同词保留、同词较晚修改、模拟断网自动补传、JSON词汇及听力笔记导入、真实退出并安全重新登录恢复。详见 ACCEPTANCE.md。这不代表已操作用户的三台实体设备。
 客户端采用单调编辑时间；长期离线设备时钟严重不准时，无法保证按现实世界时间排序。
