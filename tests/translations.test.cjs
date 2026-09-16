@@ -23,6 +23,11 @@ assert.equal(Object.keys(googleMeanings).length, 3991, 'every unique word head m
 assert.deepEqual(Object.keys(googleMeanings), Object.keys(meanings), 'Google translation keys must match the reviewed word heads');
 assert.match(html, /function isLearnedWord\(i\)/, 'the page must distinguish learned and unlearned words');
 assert.match(html, /CET6_GOOGLE_TRANSLATIONS/, 'unlearned words must read from the Google translation map');
+assert.match(html, /function secondaryMeaningHtml\(w\)/, 'unlearned words must offer collapsible secondary meanings');
+assert.match(html, /<details class="secondary-meanings">/, 'secondary meanings must be collapsed by default');
+assert.match(html, /校订词典补充/, 'secondary meanings must identify their reviewed source');
+assert.match(html, /secondaryMeaning=comparableMeaning\(b\.meaning\)/, 'the reviewed meaning must supplement the Google primary meaning');
+assert.match(html, /x\.w\.secondaryMeaning\|\|''/, 'library search must include collapsed secondary meanings');
 assert.match(googleBuilder, /MkEWBc/, 'Google translations must use isolated batch RPC calls');
 assert.doesNotMatch(googleBuilder, /batch\.join\(['"]\\n['"]\)/, 'word heads must not be combined into one contextual text');
 
