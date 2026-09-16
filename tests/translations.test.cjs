@@ -5,6 +5,7 @@ const vm = require('node:vm');
 const html = fs.readFileSync('sync-test/index.html', 'utf8');
 const reviewedSource = fs.readFileSync('sync-test/translations-reviewed.js', 'utf8');
 const googleSource = fs.readFileSync('sync-test/translations-google.js', 'utf8');
+const googleBuilder = fs.readFileSync('scripts/build-google-translations.mjs', 'utf8');
 const worker = fs.readFileSync('sync-test/sw.js', 'utf8');
 const context = { window: {} };
 vm.createContext(context);
@@ -22,12 +23,23 @@ assert.equal(Object.keys(googleMeanings).length, 3991, 'every unique word head m
 assert.deepEqual(Object.keys(googleMeanings), Object.keys(meanings), 'Google translation keys must match the reviewed word heads');
 assert.match(html, /function isLearnedWord\(i\)/, 'the page must distinguish learned and unlearned words');
 assert.match(html, /CET6_GOOGLE_TRANSLATIONS/, 'unlearned words must read from the Google translation map');
+assert.match(googleBuilder, /MkEWBc/, 'Google translations must use isolated batch RPC calls');
+assert.doesNotMatch(googleBuilder, /batch\.join\(['"]\\n['"]\)/, 'word heads must not be combined into one contextual text');
 
 for (const [word, meaning] of Object.entries(googleMeanings)) {
   assert.ok(meaning.trim(), `${word} has an empty Google translation`);
   assert.match(meaning, /[\u3400-\u9fff]/, `${word} Google translation has no Chinese text`);
   assert.doesNotMatch(meaning, /[\t\r\n]/, `${word} Google translation contains a line break`);
 }
+
+const isolatedGoogleSamples = {
+  capital: '首都',
+  consistent: '持续的',
+  battery: '电池',
+  strap: '带子',
+  refrain: '避免',
+};
+for (const [word, meaning] of Object.entries(isolatedGoogleSamples)) assert.equal(googleMeanings[word], meaning);
 
 for (const [word, meaning] of Object.entries(meanings)) {
   assert.ok(meaning.trim(), `${word} has an empty meaning`);

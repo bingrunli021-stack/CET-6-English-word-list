@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sourcePath = path.join(root, 'sync-test', 'translations-reviewed.js');
 const outputPath = path.join(root, 'sync-test', 'translations-google.js');
+const cachePath = path.join(root, '.google-translations-independent-cache.json');
 
 const context = { window: {} };
 vm.createContext(context);
@@ -18,18 +19,18 @@ if (!words.length) throw new Error('No CET-6 word heads found');
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function translateText(text) {
-  const params = new URLSearchParams({
-    client: 'gtx',
-    sl: 'en',
-    tl: 'zh-CN',
-    dt: 't',
-    q: text,
-  });
+async function requestIndependentBatch(batch) {
+  const calls = batch.map((word) => [
+    'MkEWBc',
+    JSON.stringify([[word, 'en', 'zh-CN', true], [null]]),
+    null,
+    'generic',
+  ]);
+  const params = new URLSearchParams({ 'f.req': JSON.stringify([calls]) });
   let lastError;
   for (let attempt = 0; attempt < 8; attempt += 1) {
     try {
-      const response = await fetch('https://translate.googleapis.com/translate_a/single', {
+      const response = await fetch('https://translate.google.com/_/TranslateWebserverUi/data/batchexecute?rpcids=MkEWBc', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
@@ -38,8 +39,24 @@ async function translateText(text) {
         body: params,
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const payload = await response.json();
-      return (payload[0] || []).map((part) => part[0] || '').join('');
+      const text = await response.text();
+      const jsonAt = text.indexOf('[');
+      if (jsonAt < 0) throw new Error('Missing Google batch payload');
+      const payload = JSON.parse(text.slice(jsonAt));
+      const translated = new Map();
+      for (const row of payload) {
+        if (row?.[0] !== 'wrb.fr' || row?.[1] !== 'MkEWBc') continue;
+        const result = JSON.parse(row[2]);
+        const source = String(result?.[1]?.[4]?.[0] || result?.[0]?.[6]?.[0] || '').trim();
+        const value = (result?.[1]?.[0] || [])
+          .map((segment) => segment?.[5]?.[0]?.[0] || '')
+          .join('')
+          .trim();
+        if (source && value) translated.set(source.toLowerCase(), value);
+      }
+      const missing = batch.filter((word) => !translated.has(word.toLowerCase()));
+      if (missing.length) throw new Error(`Missing ${missing.length} translations`);
+      return Object.fromEntries(batch.map((word) => [word, translated.get(word.toLowerCase())]));
     } catch (error) {
       lastError = error;
       const delay = Math.min(60000, 5000 * (2 ** attempt));
@@ -50,36 +67,29 @@ async function translateText(text) {
   throw lastError;
 }
 
-async function translateBatch(batch) {
-  const translated = await translateText(batch.join('\n'));
-  const lines = translated.split('\n').map((line) => line.trim());
-  if (lines.length === batch.length && lines.every(Boolean)) return lines;
-  if (batch.length === 1) return [translated.trim() || batch[0]];
-  const midpoint = Math.ceil(batch.length / 2);
-  return [
-    ...await translateBatch(batch.slice(0, midpoint)),
-    ...await translateBatch(batch.slice(midpoint)),
-  ];
-}
-
-const batchSize = 250;
+const batchSize = 100;
 const batches = [];
-for (let i = 0; i < words.length; i += batchSize) batches.push(words.slice(i, i + batchSize));
+const translations = fs.existsSync(cachePath)
+  ? JSON.parse(fs.readFileSync(cachePath, 'utf8'))
+  : {};
+const remaining = words.filter((word) => !translations[word]);
+for (let i = 0; i < remaining.length; i += batchSize) batches.push(remaining.slice(i, i + batchSize));
 
-const translations = {};
 let nextBatch = 0;
+let completed = words.length - remaining.length;
 async function worker() {
   while (nextBatch < batches.length) {
     const batchIndex = nextBatch++;
     const batch = batches[batchIndex];
-    const translated = await translateBatch(batch);
-    batch.forEach((word, index) => { translations[word] = translated[index]; });
-    process.stderr.write(`\rTranslated ${Math.min((batchIndex + 1) * batchSize, words.length)} / ${words.length}`);
-    await sleep(1000);
+    Object.assign(translations, await requestIndependentBatch(batch));
+    completed += batch.length;
+    fs.writeFileSync(cachePath, JSON.stringify(translations));
+    process.stderr.write(`\rTranslated ${completed} / ${words.length}`);
+    await sleep(500);
   }
 }
 
-await worker();
+await Promise.all([worker(), worker()]);
 process.stderr.write('\n');
 
 const ordered = Object.fromEntries(words.map((word) => [word, translations[word]]));
@@ -89,9 +99,11 @@ if (Object.keys(ordered).length !== words.length || Object.values(ordered).some(
 
 const output = [
   '// Generated from Google Translate by scripts/build-google-translations.mjs.',
+  '// Every headword is submitted as an independent translation task to avoid cross-word context.',
   '// Used only for words without an existing learning record.',
   `window.CET6_GOOGLE_TRANSLATIONS=Object.freeze(${JSON.stringify(ordered, null, 2)});`,
   '',
 ].join('\n');
 fs.writeFileSync(outputPath, output);
+fs.rmSync(cachePath, { force: true });
 console.log(`Wrote ${words.length} translations to ${path.relative(root, outputPath)}`);
