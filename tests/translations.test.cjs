@@ -4,15 +4,30 @@ const vm = require('node:vm');
 
 const html = fs.readFileSync('sync-test/index.html', 'utf8');
 const reviewedSource = fs.readFileSync('sync-test/translations-reviewed.js', 'utf8');
+const googleSource = fs.readFileSync('sync-test/translations-google.js', 'utf8');
 const worker = fs.readFileSync('sync-test/sw.js', 'utf8');
 const context = { window: {} };
 vm.createContext(context);
 vm.runInContext(reviewedSource, context);
+vm.runInContext(googleSource, context);
 const meanings = context.window.CET6_REVIEWED_TRANSLATIONS;
+const googleMeanings = context.window.CET6_GOOGLE_TRANSLATIONS;
 
 assert.equal(Object.keys(meanings).length, 3991, 'every unique word head must have a reviewed meaning');
 assert.match(html, /translations-reviewed\.js\?v=/, 'the page must load reviewed translations');
+assert.match(html, /translations-google\.js\?v=/, 'the page must load Google translations');
 assert.match(worker, /translations-reviewed\.js/, 'offline cache must include reviewed translations');
+assert.match(worker, /translations-google\.js/, 'offline cache must include Google translations');
+assert.equal(Object.keys(googleMeanings).length, 3991, 'every unique word head must have a Google translation');
+assert.deepEqual(Object.keys(googleMeanings), Object.keys(meanings), 'Google translation keys must match the reviewed word heads');
+assert.match(html, /function isLearnedWord\(i\)/, 'the page must distinguish learned and unlearned words');
+assert.match(html, /CET6_GOOGLE_TRANSLATIONS/, 'unlearned words must read from the Google translation map');
+
+for (const [word, meaning] of Object.entries(googleMeanings)) {
+  assert.ok(meaning.trim(), `${word} has an empty Google translation`);
+  assert.match(meaning, /[\u3400-\u9fff]/, `${word} Google translation has no Chinese text`);
+  assert.doesNotMatch(meaning, /[\t\r\n]/, `${word} Google translation contains a line break`);
+}
 
 for (const [word, meaning] of Object.entries(meanings)) {
   assert.ok(meaning.trim(), `${word} has an empty meaning`);
