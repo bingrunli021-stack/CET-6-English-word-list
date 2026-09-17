@@ -24,6 +24,8 @@ assert.deepEqual(Object.keys(googleMeanings), Object.keys(meanings), 'Google tra
 assert.doesNotMatch(html, /function isLearnedWord\(i\)/, 'translation selection must not depend on learning status');
 assert.match(html, /CET6_GOOGLE_TRANSLATIONS/, 'every word must read its primary meaning from the Google translation map');
 assert.match(html, /const google=\(window\.CET6_GOOGLE_TRANSLATIONS\|\|\{\}\)\[b\.word\.toLowerCase\(\)\]/, 'Google lookup must run before returning any word state');
+assert.match(html, /function inferPrimaryPartOfSpeech\(reviewed,primary\)/, 'every Google primary meaning must receive a part-of-speech label');
+assert.match(html, /meaning=\(partOfSpeech\?partOfSpeech\+' ':''\)\+google/, 'the primary display must prefix the inferred part of speech');
 assert.match(html, /function secondaryMeaningHtml\(w\)/, 'every word must offer collapsible secondary meanings');
 assert.match(html, /<details class="secondary-meanings">/, 'secondary meanings must be collapsed by default');
 assert.match(html, /校订词典补充/, 'secondary meanings must identify their reviewed source');
@@ -50,6 +52,7 @@ for (const [word, meaning] of Object.entries(isolatedGoogleSamples)) assert.equa
 for (const [word, meaning] of Object.entries(meanings)) {
   assert.ok(meaning.trim(), `${word} has an empty meaning`);
   assert.ok(meaning.length <= 100, `${word} meaning is too long for a study card`);
+  assert.match(meaning, /\b(?:n|v|adj|adv|prep|conj|pron|num|int|aux|pl)\./i, `${word} has no part-of-speech label`);
   assert.doesNotMatch(meaning, /[\t\r\n\[\]]/, `${word} contains an unclean artifact`);
   assert.doesNotMatch(meaning, /\s{2,}|[；，]\s*$/, `${word} has malformed spacing or punctuation`);
 }

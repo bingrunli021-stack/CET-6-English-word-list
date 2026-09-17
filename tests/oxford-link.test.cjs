@@ -11,6 +11,6 @@ assert.match(html, /encodeURIComponent\(word\)/, 'word heads must be safely enco
 assert.match(html, /target="_blank" rel="noopener noreferrer"/, 'Oxford lookup must open safely in a new tab');
 assert.match(html, /\$\{oxfordDefinitionHtml\(w\)\}/, 'every rendered study card must include the Oxford foldout');
 assert.doesNotMatch(html, /OXFORD_(?:API|APP)_(?:KEY|ID)|api[_-]?key/i, 'the static page must not expose Oxford API credentials');
-assert.match(worker, /cet6-test3-shell-11/, 'offline shell version must be current');
+assert.match(worker, /cet6-test3-shell-12/, 'offline shell version must be current');
 
 console.log('PASS collapsible Oxford official lookup on every word card');
