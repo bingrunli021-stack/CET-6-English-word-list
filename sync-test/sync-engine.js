@@ -4,11 +4,11 @@ const clone=x=>JSON.parse(JSON.stringify(x));
 const equal=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const safe=k=>!['__proto__','constructor','prototype'].includes(k);
 function flatten(p){const out={};for(const section of ['state','listenState'])for(const [key,value] of Object.entries(p[section]||{})){if(!safe(key)||['lastOpenedDay','syncMetadata','exportedAt','listenState'].includes(key))continue;
- if((section==='state'&&['records','history','todayPlans'].includes(key))||(section==='listenState'&&key==='completed')){for(const [id,v] of Object.entries(value||{}))if(safe(id))out[JSON.stringify([section,key,id])]=v;}
+ if((section==='state'&&['records','history','todayPlans','studyTime'].includes(key))||(section==='listenState'&&key==='completed')){for(const [id,v] of Object.entries(value||{}))if(safe(id))out[JSON.stringify([section,key,id])]=v;}
  else out[JSON.stringify([section,key])]=value;
 }return clone(out);}
 function newer(a,b){return !b||a.updatedAt>b.updatedAt||(a.updatedAt===b.updatedAt&&a.mutationId>b.mutationId);}
-function project(entries){const p={schemaVersion:3,state:{version:6,records:{},history:{},todayPlans:{}},listenState:{completed:{}}};for(const [key,e] of Object.entries(entries)){if(e.deleted)continue;const path=JSON.parse(key);if(path.some(k=>!safe(k)))continue;let o=p;for(const k of path.slice(0,-1))o=o[k]||(o[k]={});o[path.at(-1)]=clone(e.value);if(path[0]==='state'&&path[1]==='records'&&o[path.at(-1)]&&typeof o[path.at(-1)]==='object')o[path.at(-1)].updatedAt=e.updatedAt;}
+function project(entries){const p={schemaVersion:3,state:{version:6,records:{},history:{},todayPlans:{},studyTime:{}},listenState:{completed:{}}};for(const [key,e] of Object.entries(entries)){if(e.deleted)continue;const path=JSON.parse(key);if(path.some(k=>!safe(k)))continue;let o=p;for(const k of path.slice(0,-1))o=o[k]||(o[k]={});o[path.at(-1)]=clone(e.value);if(path[0]==='state'&&path[1]==='records'&&o[path.at(-1)]&&typeof o[path.at(-1)]==='object')o[path.at(-1)].updatedAt=e.updatedAt;}
  p.theme=p.state.theme||'system';return p;}
 function strip(v){if(v&&typeof v==='object'&&!Array.isArray(v)){v=clone(v);delete v.updatedAt;}return v;}
 class Engine{
