@@ -108,7 +108,7 @@ html[data-theme="light"] .hero-main:after,html[data-theme="light"] .listening-in
 
 
 /* Match the source site's green remembered / amber unsure state palette. */
-.word-title{flex-wrap:wrap}.phonetic{color:var(--accent2);font-family:"Noto Sans",Arial,sans-serif;font-size:15px;font-weight:650;letter-spacing:.02em;white-space:nowrap}.librow .phonetic.compact{display:block;margin-top:4px;font-size:14px;color:var(--accent2)}
+.word-title{flex-wrap:wrap}.phonetic{color:var(--accent2);font-family:"Noto Sans",Arial,sans-serif;font-size:15px;font-weight:650;letter-spacing:.02em;white-space:normal;overflow-wrap:anywhere;max-width:100%;line-height:1.6}.librow .phonetic.compact{display:block;margin-top:4px;font-size:14px;color:var(--accent2)}
 .word-card{transition:border-color .18s,background .18s,box-shadow .18s}
 .word-card.done,.librow.status-done{border-color:rgba(168,255,62,.68);background:linear-gradient(145deg,rgba(168,255,62,.11),rgba(13,20,25,.96));box-shadow:0 0 0 1px rgba(168,255,62,.16),var(--shadow)}
 .word-card.hard,.librow.status-hard{border-color:rgba(255,209,102,.72);background:linear-gradient(145deg,rgba(255,209,102,.09),rgba(13,20,25,.96))}
@@ -141,7 +141,7 @@ html[data-theme="light"] .word-actions .mini.hard.active{border-color:#a46300;ba
 <div class="field"><label><span>界面主题</span></label><select id="themeMode" onchange="setThemePreview(this.value)"><option value="system">跟随系统</option><option value="dark">深色模式</option><option value="light">浅色模式</option></select><div class="theme-preview"><button class="theme-choice" data-theme-mode="system" onclick="setThemePreview('system')" type="button">◐ 跟随系统</button><button class="theme-choice" data-theme-mode="dark" onclick="setThemePreview('dark')" type="button">☾ 深色</button><button class="theme-choice" data-theme-mode="light" onclick="setThemePreview('light')" type="button">☀ 浅色</button></div></div>
 <div class="field"><label><span>翻译显示方式</span></label><select id="translationMode"><option value="show">默认显示中文翻译</option><option value="hide">默认隐藏（自测模式）</option></select><p class="hint">隐藏后仍可在每张单词卡或每条短语上单独点击揭晓。</p></div>
 <div class="field"><label><span>每日新词数量</span><b id="dailyCountLabel"></b></label><input id="dailyCount" type="range" min="5" max="100" step="1"></div>
-<div class="field"><label><span>发音口音</span></label><select id="voiceAccent"><option value="en-US">美式英语</option><option value="en-GB">英式英语</option></select></div>
+<div class="field"><label><span>发音口音</span></label><select id="voiceAccent"><option value="en-US">美式英语</option><option value="en-GB">英式英语</option></select><p class="hint">音标随英美口音切换；多音词请结合词性辨读。实际朗读由设备语音引擎提供。</p></div>
 <div class="field"><label><span>播放速度</span><b id="rateLabel"></b></label><input id="speechRate" type="range" min="0.5" max="1.2" step="0.05"></div>
 <p class="hint">“今日新词数量”只控制新词。到期复习会自动加入复习页，不会挤掉新词。测试固定抽取 10 个词。</p><p class="hint">词库审计：5651 条原始记录已完整保留，按英文词头合并为 3991 个学习单元；重复义项可展开核对。</p>
 <button class="btn primary" style="width:100%" onclick="saveSettings()">保存设置</button>
@@ -154,7 +154,7 @@ html[data-theme="light"] .word-actions .mini.hard.active{border-color:#a46300;ba
 <div id="signedInPanel" hidden><div class="account-card"><b id="accountEmail"></b><span id="syncDetail">正在检查同步状态…</span></div><button class="btn primary" style="width:100%" onclick="syncNow(true)">立即同步</button><button class="btn" style="width:100%;margin-top:9px" onclick="signOut()">退出登录</button></div>
 <p class="sync-note">同步内容包括单词进度、每日计划、学习时长、历史记录、学习设置、听力完成记录和笔记。数据库已启用行级安全策略，每个账户只能读取自己的数据。</p><button class="btn" style="width:100%;margin-top:9px" onclick="closeAuth()">关闭</button>
 </div></div>
-<script src="./phonetics.js?v=20260909"></script>
+<script src="./phonetics.js?v=20260926-audit1"></script>
 <script src="./sync-engine.js?v=3"></script>
 <script src="./supabase.min.js"></script>
 <script src="./translations-reviewed.js?v=20260910-1"></script>
@@ -458,7 +458,15 @@ function secondaryMeaningHtml(w){
 }
 function oxfordLookupUrl(word){return 'https://www.oxfordlearnersdictionaries.com/search/english/direct/?q='+encodeURIComponent(word)}
 function oxfordDefinitionHtml(w){return `<details class="oxford-definition"><summary>查看牛津英英释义</summary><div class="oxford-definition-body"><p>前往 Oxford Learner’s Dictionaries 查看 <b>${esc(w.word)}</b> 的官方英文定义、例句和用法。</p><a class="mini oxford-link" href="${oxfordLookupUrl(w.word)}" target="_blank" rel="noopener noreferrer">打开牛津官方释义 ↗</a></div></details>`}
-function phoneticFor(word){const value=(window.CET6_PHONETICS||{})[String(word).toLowerCase()];return value?'/'+value+'/':'/—/'}
+function phoneticFor(word){
+ const value=(window.CET6_PHONETICS||{})[String(word).toLowerCase()];
+ if(!value)return '音标待核对';
+ // Support the previous cached payload during service-worker upgrades.
+ if(typeof value==='string')return '/'+value+'/';
+ const accent=state.accent==='en-GB'?'uk':'us',label=accent==='uk'?'英':'美';
+ const entries=value.variants||[value];
+ return label+' '+entries.map(entry=>(entry.label?entry.label+' ':'')+'/'+entry[accent]+'/').join('；');
+}
 function card(i,idx,type='new'){
  const w=getWord(i),r=rec(i),done=['done','hard'].includes(r.status),visible=isTranslationVisible(i);
  return `<article class="panel word-card ${r.status==='done'?'done':r.status==='hard'?'hard':''} ${type==='review'?'review':''}" id="w${i}"><div class="word-top"><div class="word-title"><span class="num">${String(idx+1).padStart(2,'0')}</span><span class="word" onclick="speak('${esc(w.word)}',this)">${esc(w.word)}</span><span class="phonetic">${esc(phoneticFor(w.word))}</span></div><button class="speak" aria-label="朗读单词及可见释义" title="朗读单词及可见释义" onclick="speak('${esc(w.word)}',this)">▶</button></div><div class="word-meanings">${visible?`<div class="meaning"><span data-speech-meaning>${esc(w.meaning)}</span>${(w.sourceCount||1)>1?`<span class="merge-badge">合并 ${w.sourceCount} 条</span>`:''}</div>${secondaryMeaningHtml(w)}${sourceMeaningsHtml(w)}`:`<button class="translation-cover" onclick="toggleCardTranslation(${i})">先在脑中作答，再点击显示中文词义</button>`}</div>${oxfordDefinitionHtml(w)}${phrasesHtml(w,i)}<div class="word-actions"><button class="mini" onclick="toggleCardTranslation(${i})">${visible?'🙈 隐藏本卡翻译':'👁 显示本卡翻译'}</button><button aria-pressed="${r.status==='done'}" class="mini ${r.status==='done'?'active':''}" onclick="mark(${i},'done')">${r.status==='done'?'✓ 已熟记 / 已完成':'✓ 熟记/完成'}</button><button aria-pressed="${r.status==='hard'}" class="mini hard ${r.status==='hard'?'active':''}" onclick="mark(${i},'hard')">${r.status==='hard'?'! 已标记模糊 · 明天复习':'! 模糊，明天再见'}</button><button class="mini" onclick="mark(${i},'new')">↺ 取消标记</button></div></article>`

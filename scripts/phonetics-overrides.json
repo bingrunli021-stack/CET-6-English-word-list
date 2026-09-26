@@ -1,0 +1,19 @@
+{
+  "proximately": {"uk":"ˈprɒksɪmətli","us":"ˈprɑːksəmətli","source":"https://dictionary.cambridge.org/pronunciation/english/proximately","reason":"有道缺少音标，使用剑桥词典英美读音。"},
+  "makeup": {"uk":"ˈmeɪkʌp","us":"ˈmeɪkʌp","source":"https://dictionary.cambridge.org/pronunciation/english/makeup","reason":"补正英式主重音。"},
+  "association": {"uk":"əˌsəʊsiˈeɪʃən","us":"əˌsoʊsiˈeɪʃən","source":"https://dictionary.cambridge.org/pronunciation/english/association","reason":"纠正美式字段混入英式 əʊ，采用剑桥常用读音。"},
+  "disservice": {"uk":"dɪsˈsɜːvɪs; dɪˈsɜːvɪs","us":"dɪsˈsɜːrvɪs; dɪˈsɜːrvɪs","source":"https://dict.youdao.com/result?word=disservice&lang=en","reason":"原始美式字段把两种读音用次重音符粘连，拆开读音。"},
+  "quantifiable": {"uk":"ˈkwɒntɪfaɪəbl; ˌkwɒntɪˈfaɪəbl","us":"ˈkwɑːntɪfaɪəbl; ˌkwɑːntɪˈfaɪəbl","source":"https://dict.youdao.com/result?word=quantifiable&lang=en","reason":"拆开原始字段粘连的两种重音变体。"},
+  "narration": {"uk":"nəˈreɪʃn; næˈreɪʃn","us":"nəˈreɪʃn; næˈreɪʃn","source":"https://dict.youdao.com/result?word=narration&lang=en","reason":"拆开原始美式字段粘连的两种读音。"},
+  "ion": {"uk":"ˈaɪən","us":"ˈaɪən; ˈaɪɑːn","source":"https://dict.youdao.com/result?word=ion&lang=en","reason":"拆开原始美式字段粘连的两种读音。"},
+  "compact": {"variants":[{"label":"adj./v.","uk":"kəmˈpækt","us":"kəmˈpækt"},{"label":"n.","uk":"ˈkɒmpækt","us":"ˈkɑːmpækt"}],"source":"https://dictionary.cambridge.org/pronunciation/english/compact","reason":"区分名词与形容词、动词的重音。"},
+  "affiliate": {"variants":[{"label":"n.","uk":"əˈfɪliət","us":"əˈfɪliət"},{"label":"v.","uk":"əˈfɪlieɪt","us":"əˈfɪlieɪt"}],"source":"https://dictionary.cambridge.org/us/pronunciation/english/affiliate","reason":"当前首选义为附属机构，补充名词读音并标注词性。"},
+  "attribute": {"variants":[{"label":"n.","uk":"ˈætrɪbjuːt","us":"ˈætrɪbjuːt"},{"label":"v.","uk":"əˈtrɪbjuːt","us":"əˈtrɪbjuːt"}],"source":"https://dictionary.cambridge.org/pronunciation/english/attribute","reason":"当前首选义为属性，补充名词读音并标注词性。"},
+  "deliberate": {"variants":[{"label":"v.","uk":"dɪˈlɪbəreɪt","us":"dɪˈlɪbəreɪt"},{"label":"adj.","uk":"dɪˈlɪbərət","us":"dɪˈlɪbərət"}],"source":"https://dictionary.cambridge.org/pronunciation/english/deliberate","reason":"区分动词与形容词词尾读音。"},
+  "excuse": {"variants":[{"label":"v.","uk":"ɪkˈskjuːz","us":"ɪkˈskjuːz"},{"label":"n.","uk":"ɪkˈskjuːs","us":"ɪkˈskjuːs"}],"source":"https://dictionary.cambridge.org/pronunciation/english/excuse","reason":"动词原谅用 z，名词用 s。"},
+  "present": {"variants":[{"label":"v.","uk":"prɪˈzent","us":"prɪˈzent"},{"label":"n./adj.","uk":"ˈprezənt","us":"ˈprezənt"}],"source":"https://dictionary.cambridge.org/pronunciation/english/present","reason":"当前首选义为展示，补充动词重音并标注词性。"},
+  "subject": {"variants":[{"label":"n./adj.","uk":"ˈsʌbdʒekt","us":"ˈsʌbdʒekt"},{"label":"v.","uk":"səbˈdʒekt","us":"səbˈdʒekt"}],"source":"https://dictionary.cambridge.org/us/pronunciation/english/subject","reason":"区分名词、形容词与动词。"},
+  "object": {"variants":[{"label":"n.","uk":"ˈɒbdʒekt","us":"ˈɑːbdʒekt"},{"label":"v.","uk":"əbˈdʒekt","us":"əbˈdʒekt"}],"source":"https://dictionary.cambridge.org/pronunciation/english/object","reason":"区分名词与动词。"},
+  "advocate": {"variants":[{"label":"v.","uk":"ˈædvəkeɪt","us":"ˈædvəkeɪt"},{"label":"n.","uk":"ˈædvəkət","us":"ˈædvəkət"}],"source":"https://dictionary.cambridge.org/pronunciation/english/advocate","reason":"区分动词与名词词尾读音。"},
+  "content": {"variants":[{"label":"n.","uk":"ˈkɒntent","us":"ˈkɑːntent"},{"label":"adj./v.","uk":"kənˈtent","us":"kənˈtent"}],"source":"https://dictionary.cambridge.org/us/pronunciation/english/content","reason":"区分名词与形容词、动词重音。"}
+}
