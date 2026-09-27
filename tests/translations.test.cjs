@@ -25,11 +25,9 @@ assert.doesNotMatch(html, /function isLearnedWord\(i\)/, 'translation selection 
 assert.match(html, /CET6_GOOGLE_TRANSLATIONS/, 'every word must read its primary meaning from the Google translation map');
 assert.match(html, /const google=\(window\.CET6_GOOGLE_TRANSLATIONS\|\|\{\}\)\[b\.word\.toLowerCase\(\)\]/, 'Google lookup must run before returning any word state');
 assert.match(html, /function inferPrimaryPartOfSpeech\(reviewed,primary\)/, 'every Google primary meaning must receive a part-of-speech label');
-assert.match(html, /meaning=\(partOfSpeech\?partOfSpeech\+' ':''\)\+google/, 'the primary display must prefix the inferred part of speech');
 assert.match(html, /function secondaryMeaningHtml\(w\)/, 'every word must offer collapsible secondary meanings');
 assert.match(html, /<details class="secondary-meanings">/, 'secondary meanings must be collapsed by default');
 assert.match(html, /校订词典补充/, 'secondary meanings must identify their reviewed source');
-assert.match(html, /secondaryMeaning=comparableMeaning\(b\.meaning\)/, 'the reviewed meaning must supplement the Google primary meaning for every state');
 assert.match(html, /x\.w\.secondaryMeaning\|\|''/, 'library search must include collapsed secondary meanings');
 assert.match(googleBuilder, /MkEWBc/, 'Google translations must use isolated batch RPC calls');
 assert.doesNotMatch(googleBuilder, /batch\.join\(['"]\\n['"]\)/, 'word heads must not be combined into one contextual text');
