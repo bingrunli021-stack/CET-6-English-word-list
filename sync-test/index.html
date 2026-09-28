@@ -492,8 +492,31 @@ function card(i,idx,type='new'){
 }
 function translationControlButton(){const hidden=state.translationMode==='hide';return `<button class="btn ${hidden?'blue':''}" onclick="toggleGlobalTranslations()"><span class="translation-state">${hidden?'🙈':'👁'} <strong>${hidden?'自测模式：显示全部翻译':'隐藏全部翻译'}</strong></span></button>`}
 function renderToday(){const p=getPlan();const range=p.indices.length?`第 ${p.indices[0]+1}—${p.indices[p.indices.length-1]+1} 词`:'词库已完成';return `${renderHeader()}<div class="controls"><button class="btn primary" onclick="completeToday()">完成今日实际进度</button><button class="btn blue" onclick="startDailyCheck()">检测今日新词</button><button class="btn blue" onclick="speakBatch()">连续朗读单词与释义</button><button class="btn" onclick="stopSpeech()">停止朗读</button>${translationControlButton()}<button class="btn" onclick="openSettings()">调整今日目标</button></div><div class="section-head"><div><h3>今日新词</h3><p>${dayKey()} 自动推荐 · ${range}；${state.translationMode==='hide'?'翻译已隐藏：先回忆，再按需点击揭晓':'可一键隐藏翻译进入自测模式'}</p></div><span class="badge">${p.indices.filter(i=>['done','hard'].includes(rec(i).status)).length} / ${p.indices.length} 已标记</span></div><div class="word-list">${p.indices.map((i,n)=>card(i,n)).join('')||'<div class="panel empty">词库已经完成。</div>'}</div>`}
-function reviewOne(i,quality){const r=rec(i);if(quality==='again'){r.level=1;r.wrong=(r.wrong||0)+1;r.due=addDays(dayKey(),1)}else{r.level=Math.min((r.level||1)+1,REVIEW_INTERVALS.length);r.due=addDays(dayKey(),REVIEW_INTERVALS[Math.min(r.level-1,REVIEW_INTERVALS.length-1)])}r.status=quality==='again'?'hard':'done';state.records[i]=r;saveState();toast(quality==='again'?'已安排明天再复习':'复习完成，间隔已延长');render()}
-function renderReview(){const due=dueIndices();return `${renderHeader()}<div class="controls">${translationControlButton()}</div><div class="section-head"><div><h3>到期复习</h3><p>采用 1、2、4、7、15、30、60 天间隔；建议隐藏翻译后先主动回忆</p></div><span class="badge">${due.length} 词</span></div><div class="word-list">${due.map((i,n)=>card(i,n,'review').replace('</article>',`<div class="word-actions"><button class="btn primary" onclick="reviewOne(${i},'good')">记得，延长间隔</button><button class="btn warn" onclick="reviewOne(${i},'again')">忘了，明天再来</button></div></article>`)).join('')||'<div class="panel empty">今天没有到期复习。完成新词后，复习计划会自动生成。</div>'}</div>`}
+function reviewOne(i,quality){
+ const cardEl=document.getElementById('w'+i);
+ // Ignore a repeated click after this word has already left today's queue.
+ const r=rec(i);if(!r.due||r.due>dayKey()||r.status==='new')return;
+ if(quality==='again'){r.level=1;r.wrong=(r.wrong||0)+1;r.due=addDays(dayKey(),1)}
+ else{r.level=Math.min((r.level||1)+1,REVIEW_INTERVALS.length);r.due=addDays(dayKey(),REVIEW_INTERVALS[Math.min(r.level-1,REVIEW_INTERVALS.length-1)])}
+ r.status=quality==='again'?'hard':'done';state.records[i]=r;
+ saveState();stopSpeech();
+ if(view==='review'&&cardEl){
+  cardEl.remove();
+  const remaining=dueIndices().length;
+  const count=document.getElementById('reviewCount');if(count)count.textContent=remaining+' 词';
+  const stats=document.querySelectorAll('#app .stats .stat > b');
+  if(stats[1])stats[1].textContent=Object.values(state.records).filter(r=>(r.level||0)>=4).length;
+  if(stats[2])stats[2].textContent=remaining;
+  const hardNav=document.querySelector('[data-view="hard"]'),weakNav=document.querySelector('[data-view="weak"]');
+  const records=Object.values(state.records);
+  if(hardNav)hardNav.title=records.filter(r=>r.status==='hard').length+' 个模糊词';
+  if(weakNav)weakNav.title=records.filter(r=>r.learnedAt&&r.status!=='new'&&(r.level||0)<4).length+' 个未熟练词';
+  const list=document.getElementById('reviewList');
+  if(list){list.querySelectorAll('.num').forEach((el,n)=>el.textContent=String(n+1).padStart(2,'0'));if(!remaining)list.innerHTML='<div class="panel empty">今天没有到期复习。完成新词后，复习计划会自动生成。</div>';}
+ }else render();
+ toast(quality==='again'?'已安排明天再复习':'复习完成，间隔已延长');
+}
+function renderReview(){const due=dueIndices();return `${renderHeader()}<div class="controls">${translationControlButton()}</div><div class="section-head"><div><h3>到期复习</h3><p>采用 1、2、4、7、15、30、60 天间隔；建议隐藏翻译后先主动回忆</p></div><span class="badge" id="reviewCount">${due.length} 词</span></div><div class="word-list" id="reviewList">${due.map((i,n)=>card(i,n,'review').replace('</article>',`<div class="word-actions"><button class="btn primary" onclick="reviewOne(${i},'good')">记得，延长间隔</button><button class="btn warn" onclick="reviewOne(${i},'again')">忘了，明天再来</button></div></article>`)).join('')||'<div class="panel empty">今天没有到期复习。完成新词后，复习计划会自动生成。</div>'}</div>`}
 function hardCard(i,n){const actions=`<div class="hard-card-actions"><button class="btn primary" onclick="hardRecall(${i},true)">✓ 这次记住了</button><button class="btn warn" onclick="hardRecall(${i},false)">! 仍然模糊，下一词</button></div>`;return card(i,n,'review').replace(/<div class="word-actions">.*<\/div><\/article>$/,actions+'</article>')}
 function renderHard(){const all=hardIndices(),queue=all.filter(i=>!hardSessionSeen.has(i)),batch=queue.slice(0,20),seen=all.filter(i=>hardSessionSeen.has(i)).length;const content=!all.length?'<div class="panel empty">目前没有模糊单词。以后点击“模糊”标记的词会自动进入这里。</div>':!queue.length?`<div class="panel empty"><h3>本轮 ${seen} 个模糊词已全部过完</h3><p>仍然模糊的词已经保留，明天也会进入正常复习。</p><button class="btn primary" onclick="resetHardSession()">再过一轮</button></div>`:`<div class="word-list">${batch.map((i,n)=>hardCard(i,n)).join('')}</div>`;return `<section class="panel hard-hub"><span class="kicker">HARD WORD SWEEP</span><h2>模糊单词专项</h2><p>不等到期，随时集中清理所有标记为“模糊”的词。优先显示出错次数较多的词，每轮最多呈现 20 个，处理后自动补位。</p><div class="hard-progress"><span>当前模糊词</span><b>${all.length}</b></div><div class="hard-round-actions">${translationControlButton()}<button class="btn blue" onclick="resetHardSession()">重新开始本轮</button></div></section><div class="section-head"><div><h3>${queue.length?'继续攻克':'本轮完成'}</h3><p>${queue.length?`本轮还剩 ${queue.length} 个；记住后自动移出，仍模糊则本轮先跳过`:'可以再过一轮，或等明天按正常间隔复习'}</p></div><span class="badge">已过 ${seen} 词</span></div>${content}`}
 function weakRemaining(){return weakIndices().filter(i=>!weakStudySeen.has(i))}
