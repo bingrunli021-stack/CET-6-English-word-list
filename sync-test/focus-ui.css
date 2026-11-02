@@ -1,0 +1,10 @@
+/* Hide site chrome while retaining word controls and quick-review grading. */
+html[data-focus-mode="on"] .topbar,
+html[data-focus-mode="on"] .bottomnav,
+html[data-focus-mode="on"] .source-note{display:none!important}
+html[data-focus-mode="on"] .shell{padding-top:12px;padding-bottom:64px}
+.focus-restore{position:fixed;z-index:55;right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));min-height:42px;padding:9px 13px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--accent2);box-shadow:var(--shadow);font-size:13px;cursor:pointer}
+.focus-restore[hidden]{display:none}
+.focus-restore:focus-visible,.focus-toggle:focus-visible{outline:3px solid var(--accent2);outline-offset:3px}
+html[data-focus-mode="on"] body.quick-active .focus-restore{top:max(8px,env(safe-area-inset-top));bottom:auto}
+html[data-focus-mode="on"] body.quick-active .quick-session{padding-top:44px;margin-top:0}

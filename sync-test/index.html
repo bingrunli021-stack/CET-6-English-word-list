@@ -14,6 +14,7 @@ const studyStorage={getItem:k=>localStorage.getItem(clientPrefix+k),setItem:(k,v
 
 (function(){
   try{
+    document.documentElement.dataset.focusMode=studyStorage.getItem('test3:cet6_focus_ui_v1')==='on'?'on':'off';
     const saved=studyStorage.getItem('test3:cet6_theme_v1')||'system';
     const resolved=saved==='system'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):saved;
     document.documentElement.dataset.theme=resolved;
@@ -121,11 +122,13 @@ html[data-theme="light"] .word-actions .mini.hard.active{border-color:#a46300;ba
 </style>
 <link rel="stylesheet" href="./reverse-practice.css?v=20261009-1">
 <link rel="stylesheet" href="./quick-review.css?v=20261102-1">
+<link rel="stylesheet" href="./focus-ui.css?v=20261102-1">
 </head>
 <body>
+<button class="focus-restore" id="focusRestoreBtn" onclick="setFocusMode(false)" aria-label="展开上下栏，退出专注模式" title="展开顶部工具栏和底部导航" hidden>↗ 展开导航</button>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="shell">
-<header class="topbar"><div class="brand"><div class="logo">VI</div><div><h1>CET-6 学习舱 · 测试版</h1><small id="dateLine">逐词同步测试版</small></div></div><div class="top-actions"><button class="iconbtn" onclick="if(view==='quick'){quickRunning=false;quickDeadline=0;render()}else stopSpeech()" aria-label="停止朗读" title="停止朗读">■</button><button class="iconbtn cloudbtn" id="cloudBtn" onclick="openAuth()" aria-label="账户与同步"><span class="cloud-dot" id="cloudDot"></span><span id="cloudText">登录</span></button><button class="iconbtn" id="translationQuickBtn" onclick="toggleGlobalTranslations()" aria-label="显示或隐藏翻译">👁</button><button class="iconbtn theme-icon" id="themeQuickBtn" onclick="cycleTheme()" aria-label="切换深浅色">☾</button><button class="iconbtn" onclick="openSettings()">⚙ 设置</button></div></header>
+<header class="topbar"><div class="brand"><div class="logo">VI</div><div><h1>CET-6 学习舱 · 测试版</h1><small id="dateLine">逐词同步测试版</small></div></div><div class="top-actions"><button class="iconbtn focus-toggle" onclick="setFocusMode(true)" aria-label="收起上下栏，进入专注模式" title="收起上下栏，进入专注模式">⛶ 专注</button><button class="iconbtn" onclick="if(view==='quick'){quickRunning=false;quickDeadline=0;render()}else stopSpeech()" aria-label="停止朗读" title="停止朗读">■</button><button class="iconbtn cloudbtn" id="cloudBtn" onclick="openAuth()" aria-label="账户与同步"><span class="cloud-dot" id="cloudDot"></span><span id="cloudText">登录</span></button><button class="iconbtn" id="translationQuickBtn" onclick="toggleGlobalTranslations()" aria-label="显示或隐藏翻译">👁</button><button class="iconbtn theme-icon" id="themeQuickBtn" onclick="cycleTheme()" aria-label="切换深浅色">☾</button><button class="iconbtn" onclick="openSettings()">⚙ 设置</button></div></header>
 <main id="app"></main>
 <div class="source-note">词库审计：5651 条原始记录合并为 3991 个不重复词头；全部词头已进行格式清理与一致性检查，高风险词已优先人工修正，完整原始释义仍可展开核对。快捷复习版（20261102-1）：操作立即保存到本机，登录后自动同步到云端。</div>
 </div>
@@ -161,6 +164,7 @@ html[data-theme="light"] .word-actions .mini.hard.active{border-color:#a46300;ba
 <script src="./sync-engine.js?v=4"></script>
 <script src="./reverse-practice.js?v=20261009-1"></script>
 <script src="./quick-review.js?v=20261102-1"></script>
+<script src="./focus-ui.js?v=20261102-1"></script>
 <script src="./supabase.min.js"></script>
 <script src="./translations-reviewed.js?v=20260910-1"></script>
 <script src="./translations-google.js?v=20260916-2"></script>
