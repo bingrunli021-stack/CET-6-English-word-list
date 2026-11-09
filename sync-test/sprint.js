@@ -62,6 +62,84 @@ function sprintOpen() {
   scrollTo({top:0});
 }
 
+function sprintListOpen() {
+  view = 'sprint-list';
+  setNav('review');
+  render();
+  scrollTo({top:0});
+}
+
+function sprintListSettings(groups) {
+  try {
+    const saved = JSON.parse(studyStorage.getItem(sprintKey() + ':list'));
+    if (Number.isInteger(saved?.group) && saved.group >= 0 && saved.group <= groups) {
+      return {group:saved.group, translations:saved.translations === true};
+    }
+  } catch (_) {}
+  return {group:1, translations:false};
+}
+
+function sprintListChange(group, translations) {
+  const groups = Math.ceil(sprintWords().size / SPRINT_SIZE);
+  if (!Number.isInteger(group) || group < 0 || group > groups) return;
+  const current = sprintListSettings(groups);
+  try {
+    studyStorage.setItem(sprintKey() + ':list', JSON.stringify({group, translations}));
+  } catch (_) {
+    toast('当前浏览器无法保存列表设置');
+    render();
+    return;
+  }
+  if (group !== current.group) {
+    render();
+    scrollTo({top:0, behavior:'instant'});
+    return;
+  }
+  // Toggle visibility without rebuilding the word rows.
+  document.getElementById('sprintWordList').dataset.translations = translations ? 'show' : 'hide';
+  document.getElementById('sprintListTranslation').textContent = translations ? '隐藏翻译' : '显示翻译';
+}
+
+function sprintListToggle() {
+  const {group, translations} = sprintListSettings(Math.ceil(sprintWords().size / SPRINT_SIZE));
+  sprintListChange(group, !translations);
+}
+
+function sprintListGroup(group) {
+  const {translations} = sprintListSettings(Math.ceil(sprintWords().size / SPRINT_SIZE));
+  sprintListChange(group, translations);
+}
+
+function renderSprintList() {
+  const ranked = [...sprintWords().values()];
+  const total = ranked.length, groups = Math.ceil(total / SPRINT_SIZE);
+  const {group, translations} = sprintListSettings(groups);
+  const start = group ? (group - 1) * SPRINT_SIZE : 0;
+  const end = group ? Math.min(start + SPRINT_SIZE, total) : total;
+  const options = Array.from({length:groups}, (_, index) => {
+    const number = index + 1, first = index * SPRINT_SIZE + 1, last = Math.min(number * SPRINT_SIZE, total);
+    return `<option value="${number}"${number === group ? ' selected' : ''}>第 ${number} 组 · ${first}–${last} 词</option>`;
+  }).join('');
+  const rows = ranked.slice(start, end).map(i => {
+    const word = getWord(i);
+    return `<li><strong lang="en">${esc(word.word)}</strong> <span class="sprint-list-meaning">${esc(word.meaning)}</span></li>`;
+  }).join('');
+  return `<section class="sprint-list">
+    <header class="sprint-list-header"><div><span class="kicker">CET-6 SPRINT</span><h2>高频词列表复习</h2></div>
+      <button class="btn" onclick="sprintOpen()">逐词自测</button></header>
+    <div class="sprint-list-controls">
+      <select aria-label="选择词表分组" onchange="sprintListGroup(Number(this.value))">
+        ${options}<option value="0"${group === 0 ? ' selected' : ''}>全部 ${total} 词</option></select>
+      <button class="btn primary" id="sprintListTranslation" aria-controls="sprintWordList" onclick="sprintListToggle()">${translations ? '隐藏翻译' : '显示翻译'}</button>
+    </div>
+    <ol class="panel sprint-word-list" id="sprintWordList" start="${start + 1}" data-translations="${translations ? 'show' : 'hide'}">${rows}</ol>
+    <div class="quick-start-actions">
+      ${group > 1 ? `<button class="btn" onclick="sprintListGroup(${group - 1})">← 上一组</button>` : ''}
+      ${group > 0 && group < groups ? `<button class="btn primary" onclick="sprintListGroup(${group + 1})">下一组 →</button>` : ''}
+      <button class="btn" onclick="sprintLeave()">返回复习</button>
+    </div></section>`;
+}
+
 function sprintLeave() {
   sprintRevealCard = null;
   view = 'review';
@@ -168,9 +246,10 @@ function sprintEntry() {
   const {next, round} = sprintProgress();
   const active = round && round.at < round.words.length;
   return `<section class="panel quick-hub"><div class="quick-hub-copy"><span class="kicker">CET-6 SPRINT</span><h2>高频词冲刺</h2>
-    <p>看英文，快速回忆词义。每组 100 词，卡住的词可以集中重刷。</p></div>
+    <p>列表快速扫词，逐词自测可以把卡住的词留下来重刷。</p></div>
     <div class="quick-hub-count"><b>${total}</b><span>冲刺词 · 已过 ${next}</span></div>
-    <div class="quick-start-actions"><button class="btn primary" onclick="sprintOpen()">${active?'继续冲刺':'进入冲刺'}</button></div></section>`;
+    <div class="quick-start-actions"><button class="btn primary" onclick="sprintListOpen()">列表复习</button>
+    <button class="btn" onclick="sprintOpen()">${active?'继续逐词自测':'逐词自测'}</button></div></section>`;
 }
 
 function renderSprint() {
@@ -187,6 +266,7 @@ function renderSprint() {
         ${total?`<button class="btn primary" onclick="sprintStart('all')">${next===total?'再过一轮':next?'继续下一组':'开始第一组'} · ${SPRINT_SIZE} 词</button>`:''}
         ${weak?`<button class="btn warn" onclick="sprintStart('weak')">只刷卡词 · 最多 ${Math.min(SPRINT_SIZE,weak)} 词</button>`:''}
         ${last?'<button class="btn" onclick="sprintUndo()">撤销上一词</button>':''}
+        <button class="btn" onclick="sprintListOpen()">列表复习</button>
         <button class="btn" onclick="sprintLeave()">返回复习</button>
       </div>
       <p class="hint">冲刺进度与卡词保存在当前设备。释义沿用站内词库。</p>
@@ -198,7 +278,8 @@ function renderSprint() {
   const revealed = feedback || sprintRevealed(i);
   const position = feedback ? round.at : round.at + 1;
   return `<section class="quick-session"><div class="quick-toolbar"><button class="mini" onclick="sprintLeave()">← 返回复习</button>
-    <span class="badge">${round.mode==='weak'?'卡词重刷':'高频词冲刺'}</span></div>
+    <span class="badge">${round.mode==='weak'?'卡词重刷':'高频词冲刺'}</span>
+    <button class="mini" onclick="sprintListOpen()">列表复习</button></div>
     <div class="progress-head"><span>本组 ${position} / ${round.words.length}</span><span>本轮已扫 ${next} / ${total} · 卡词 ${weak}</span></div>
     <div class="progress"><i style="width:${round.at/round.words.length*100}%"></i></div>
     <article class="panel quick-card"><p class="quick-instruction">看英文，先回忆常见词义</p>

@@ -7,3 +7,19 @@
 @media(prefers-reduced-motion:reduce){.quick-session .progress>i{transition:none}}
 
 @media(max-width:600px){.top-actions{flex-wrap:wrap}.top-actions>.btn{white-space:nowrap}}
+
+.sprint-list{max-width:760px;margin:16px auto}
+.sprint-list-header,.sprint-list-controls{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.sprint-list-header h2{margin:5px 0;font-size:clamp(21px,4.5vw,32px)}
+body.sprint-list-active .topbar{position:static}
+.sprint-list-controls{position:sticky;top:0;z-index:30;background:var(--bg);padding:10px 0}
+.sprint-list-controls select{flex:1;min-width:0;min-height:44px;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--text)}
+.sprint-list-controls .btn,.sprint-list-header .btn{flex:none;white-space:nowrap}
+.sprint-word-list{margin:0 0 16px;padding:0 14px 0 54px}
+.sprint-word-list li{padding:8px 0;line-height:1.45;overflow-wrap:anywhere}
+.sprint-word-list li+li{border-top:1px solid var(--line)}
+.sprint-word-list li::marker{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.sprint-word-list strong{font-size:18px;margin-inline-start:5px}
+.sprint-list-meaning{margin-inline-start:10px;color:var(--muted);font-size:14px}
+.sprint-word-list[data-translations="hide"] .sprint-list-meaning{display:none}
+@media(max-width:400px){.sprint-list-header .btn,.sprint-list-controls .btn{padding-inline:11px}}

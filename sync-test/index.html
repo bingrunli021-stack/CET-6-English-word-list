@@ -121,7 +121,7 @@ html[data-theme="light"] .word-actions .mini.active{border-color:#4d8f00;backgro
 html[data-theme="light"] .word-actions .mini.hard.active{border-color:#a46300;background:#a46300;color:#fff}
 </style>
 <link rel="stylesheet" href="./reverse-practice.css?v=20261009-1">
-<link rel="stylesheet" href="./quick-review.css?v=20261102-1">
+<link rel="stylesheet" href="./quick-review.css?v=20261109-1">
 <link rel="stylesheet" href="./focus-ui.css?v=20261102-1">
 </head>
 <body>
@@ -165,7 +165,7 @@ html[data-theme="light"] .word-actions .mini.hard.active{border-color:#a46300;ba
 <script src="./reverse-practice.js?v=20261009-1"></script>
 <script src="./quick-review.js?v=20261102-1"></script>
 <script src="./sprint-words.js?v=1"></script>
-<script src="./sprint.js?v=1"></script>
+<script src="./sprint.js?v=2"></script>
 <script src="./focus-ui.js?v=20261102-2"></script>
 <script src="./supabase.min.js"></script>
 <script src="./translations-reviewed.js?v=20260910-1"></script>
@@ -258,7 +258,8 @@ const REMOTE_JSON='https://raw.githubusercontent.com/KyleBing/english-vocabulary
 const KEY='test3:cet6_endfield_v3';
 const REVIEW_INTERVALS=[1,2,4,7,15,30,60];
 let enriched=new Map();
-let view=new URLSearchParams(location.search).get('mode')==='sprint'?'sprint':'today';
+const startupMode=new URLSearchParams(location.search).get('mode');
+let view=['sprint','sprint-list'].includes(startupMode)?startupMode:'today';
 const THEME_KEY='test3:cet6_theme_v1';
 const SYNC_META_KEY='cet6_sync_meta_v1';
 const DEVICE_KEY='test3:cet6_device_id_v1';
@@ -585,7 +586,7 @@ function toggleListenTimer(btn){if(listeningUI.timer){clearInterval(listeningUI.
 function renderLibrary(){return `${renderHeader()}<div class="controls">${translationControlButton()}</div><div class="section-head"><div><h3>完整词库</h3><p>搜索 ${UNIQUE_WORD_COUNT} 个独立词头；全部单词显示词性与对应释义，其他常用释义默认折叠</p></div></div><div class="panel audit-note"><strong>词义规则：</strong>无论是否学过，优先显示已修正的词性与释义；其余谷歌译文按完整义项匹配词性。多词性无法确定时显示带词性的校订释义，不再直接套用第一个词性。校订词典中的其他常用释义默认收起，可按需展开。学习状态只影响进度和复习安排，不再改变词义。</div><input class="searchbox" id="libSearch" placeholder="输入英文或中文释义…" oninput="librarySearch(this.value)"><div id="libResults" class="library-grid"></div>`}
 function librarySearch(q=''){const box=document.getElementById('libResults');if(!box)return;const s=q.trim().toLowerCase();let arr=FALLBACK_WORDS.map((_,i)=>({w:getWord(i),i}));if(s)arr=arr.filter(x=>x.w.word.toLowerCase().includes(s)||x.w.meaning.includes(s)||(x.w.secondaryMeaning||'').includes(s));arr=arr.slice(0,100);box.innerHTML=arr.map(({w,i})=>{const visible=isTranslationVisible(i);return `<div class="librow ${rec(i).status==='done'?'status-done':rec(i).status==='hard'?'status-hard':''}"><b onclick="speak('${esc(w.word)}',this)">${esc(w.word)} 🔊<span class="phonetic compact">${esc(phoneticFor(w.word))}</span></b>${visible?`<div class="lib-meaning"><span data-speech-meaning>${esc(w.meaning)}</span>${secondaryMeaningHtml(w)}</div>`:`<button class="phrase-translation-toggle" onclick="toggleCardTranslation(${i});librarySearch(document.getElementById('libSearch')?.value||'')">点击显示词义</button>`}<button class="mini" onclick="jumpToWord(${i})">学习</button></div>`}).join('')||'<div class="panel empty">没有找到。</div>'}
 function jumpToWord(i){const p=getPlan();if(p.indices.includes(i)){view='today';setNav('today');render();setTimeout(()=>document.getElementById('w'+i)?.scrollIntoView({behavior:'smooth',block:'center'}),80)}else{toast(`该词位于词库第 ${i+1} 位`)}}
-function render(){stopSpeech();quickBeforeRender();updateTranslationQuickButton();const hardNav=document.querySelector('[data-view="hard"]'),weakNav=document.querySelector('[data-view="weak"]');if(hardNav)hardNav.title=`${hardIndices().length} 个模糊词`;if(weakNav)weakNav.title=`${weakIndices().length} 个未熟练词`;document.getElementById('dateLine').textContent=new Intl.DateTimeFormat('zh-CN',{dateStyle:'full'}).format(new Date())+' · 本地优先 · '+(currentUser?'云端自动同步':'登录后跨设备同步');document.getElementById('app').innerHTML=view==='quick'?renderQuickReview():view==='sprint'?renderSprint():view==='today'?renderToday():view==='daily-check'?renderDailyCheck():view==='review'?renderReview():view==='hard'?renderHard():view==='weak'?renderWeak():view==='reverse'?renderReversePractice():view==='test'?renderTest():view==='listening'?renderListening():renderLibrary();if(view==='library')librarySearch('');if(view==='listening')setTimeout(updateListenStats,0);quickAfterRender()}
+function render(){stopSpeech();quickBeforeRender();document.body?.classList.toggle('sprint-list-active',view==='sprint-list');updateTranslationQuickButton();const hardNav=document.querySelector('[data-view="hard"]'),weakNav=document.querySelector('[data-view="weak"]');if(hardNav)hardNav.title=`${hardIndices().length} 个模糊词`;if(weakNav)weakNav.title=`${weakIndices().length} 个未熟练词`;document.getElementById('dateLine').textContent=new Intl.DateTimeFormat('zh-CN',{dateStyle:'full'}).format(new Date())+' · 本地优先 · '+(currentUser?'云端自动同步':'登录后跨设备同步');document.getElementById('app').innerHTML=view==='quick'?renderQuickReview():view==='sprint'?renderSprint():view==='sprint-list'?renderSprintList():view==='today'?renderToday():view==='daily-check'?renderDailyCheck():view==='review'?renderReview():view==='hard'?renderHard():view==='weak'?renderWeak():view==='reverse'?renderReversePractice():view==='test'?renderTest():view==='listening'?renderListening():renderLibrary();if(view==='library')librarySearch('');if(view==='listening')setTimeout(updateListenStats,0);quickAfterRender()}
 function setNav(v){document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===v))}
 document.querySelectorAll('.navbtn').forEach(b=>b.onclick=()=>{view=b.dataset.view;setNav(view);render();scrollTo({top:0,behavior:'smooth'})});
 function openSettings(){const m=document.getElementById('settingsModal');document.getElementById('themeMode').value=state.theme||'system';document.getElementById('translationMode').value=state.translationMode||'show';document.getElementById('dailyCount').value=state.dailyCount;document.getElementById('dailyCountLabel').textContent=state.dailyCount+' 词';document.getElementById('voiceAccent').value=state.accent;document.getElementById('speechRate').value=state.rate;document.getElementById('rateLabel').textContent=state.rate.toFixed(2)+'×';applyTheme(state.theme||'system');m.classList.add('show')}
@@ -609,6 +610,6 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)scheduleSy
 setInterval(()=>{if(currentUser&&!document.hidden)scheduleSync(0)},15000);
 setInterval(refreshForDateChange,60000);
 if(clientPrefix){const qaButton=document.createElement('button');qaButton.className='btn';qaButton.textContent='测试：模拟断网';qaButton.onclick=()=>{simulatedOffline=!simulatedOffline;qaButton.textContent=simulatedOffline?'测试：恢复联网':'测试：模拟断网';if(simulatedOffline)setCloudStatus('离线','busy');else scheduleSync(0)};document.querySelector('.top-actions').appendChild(qaButton);}
-guestInitial=cloudPayload();syncEngine=new CET6Sync.Engine({storage:studyStorage,scope:studyStorage.getItem('test3:cet6:v2:owner')||studyStorage.getItem('cet6-test3-guest-scope')||'guest',initial:guestInitial,rpc:async()=>{throw Error('未登录')},onApply:applyStudyPayload});applyStudyPayload(syncEngine.current);applyTheme(state.theme||'system');if(view==='sprint')setNav('review');render();initStudyTimeTracking();enrich();initAuth();
+guestInitial=cloudPayload();syncEngine=new CET6Sync.Engine({storage:studyStorage,scope:studyStorage.getItem('test3:cet6:v2:owner')||studyStorage.getItem('cet6-test3-guest-scope')||'guest',initial:guestInitial,rpc:async()=>{throw Error('未登录')},onApply:applyStudyPayload});applyStudyPayload(syncEngine.current);applyTheme(state.theme||'system');if(['sprint','sprint-list'].includes(view))setNav('review');render();initStudyTimeTracking();enrich();initAuth();
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});</script></body></html>
