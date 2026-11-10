@@ -73,24 +73,26 @@ function sprintListSettings(groups) {
   try {
     const saved = JSON.parse(studyStorage.getItem(sprintKey() + ':list'));
     if (Number.isInteger(saved?.group) && saved.group >= 0 && saved.group <= groups) {
-      return {group:saved.group, translations:saved.translations === true};
+      return {group:saved.group, translations:saved.translations === true, markedOnly:saved.markedOnly === true};
     }
   } catch (_) {}
-  return {group:1, translations:false};
+  return {group:1, translations:false, markedOnly:false};
 }
 
-function sprintListChange(group, translations) {
+function sprintListChange(changes) {
   const groups = Math.ceil(sprintWords().size / SPRINT_SIZE);
-  if (!Number.isInteger(group) || group < 0 || group > groups) return;
   const current = sprintListSettings(groups);
+  const settings = {...current, ...changes};
+  const {group, translations, markedOnly} = settings;
+  if (!Number.isInteger(group) || group < 0 || group > groups) return;
   try {
-    studyStorage.setItem(sprintKey() + ':list', JSON.stringify({group, translations}));
+    studyStorage.setItem(sprintKey() + ':list', JSON.stringify(settings));
   } catch (_) {
     toast('当前浏览器无法保存列表设置');
     render();
     return;
   }
-  if (group !== current.group) {
+  if (group !== current.group || markedOnly !== current.markedOnly) {
     render();
     scrollTo({top:0, behavior:'instant'});
     return;
@@ -101,41 +103,90 @@ function sprintListChange(group, translations) {
 }
 
 function sprintListToggle() {
-  const {group, translations} = sprintListSettings(Math.ceil(sprintWords().size / SPRINT_SIZE));
-  sprintListChange(group, !translations);
+  const {translations} = sprintListSettings(Math.ceil(sprintWords().size / SPRINT_SIZE));
+  sprintListChange({translations:!translations});
 }
 
 function sprintListGroup(group) {
-  const {translations} = sprintListSettings(Math.ceil(sprintWords().size / SPRINT_SIZE));
-  sprintListChange(group, translations);
+  sprintListChange({group});
+}
+
+function sprintListToggleFilter() {
+  const {markedOnly} = sprintListSettings(Math.ceil(sprintWords().size / SPRINT_SIZE));
+  sprintListChange({markedOnly:!markedOnly});
+  document.getElementById('sprintListFilter').focus({preventScroll:true});
+}
+
+function sprintListStars() {
+  try {
+    const saved = JSON.parse(studyStorage.getItem(sprintKey() + ':stars'));
+    if (Array.isArray(saved)) return new Set(saved.filter(word => sprintWords().has(word)));
+  } catch (_) {}
+  return new Set();
+}
+
+function sprintListToggleStar(i, button) {
+  const word = FALLBACK_WORDS[i]?.word.toLowerCase();
+  if (!sprintWords().has(word)) return;
+  const stars = sprintListStars();
+  const marked = !stars.delete(word);
+  if (marked) stars.add(word);
+  try {
+    studyStorage.setItem(sprintKey() + ':stars', JSON.stringify([...stars]));
+  } catch (_) {
+    toast('当前浏览器无法保存重点词');
+    return;
+  }
+  document.getElementById('sprintListStarCount').textContent = stars.size;
+  const list = document.getElementById('sprintWordList');
+  if (list.dataset.markedOnly === 'true' && !marked) {
+    const row = button.closest('li');
+    const neighbor = row.nextElementSibling || row.previousElementSibling;
+    row.remove();
+    list.hidden = !list.firstElementChild;
+    document.getElementById('sprintListEmpty').hidden = !list.hidden;
+    (neighbor?.querySelector('button') || document.getElementById('sprintListFilter')).focus({preventScroll:true});
+    return;
+  }
+  button.setAttribute('aria-pressed', String(marked));
+  button.title = marked ? '取消重点' : '标为重点';
+  button.textContent = marked ? '★' : '☆';
 }
 
 function renderSprintList() {
-  const ranked = [...sprintWords().values()];
+  const ranked = [...sprintWords().entries()];
   const total = ranked.length, groups = Math.ceil(total / SPRINT_SIZE);
-  const {group, translations} = sprintListSettings(groups);
+  const {group, translations, markedOnly} = sprintListSettings(groups);
+  const stars = sprintListStars();
   const start = group ? (group - 1) * SPRINT_SIZE : 0;
   const end = group ? Math.min(start + SPRINT_SIZE, total) : total;
   const options = Array.from({length:groups}, (_, index) => {
     const number = index + 1, first = index * SPRINT_SIZE + 1, last = Math.min(number * SPRINT_SIZE, total);
     return `<option value="${number}"${number === group ? ' selected' : ''}>第 ${number} 组 · ${first}–${last} 词</option>`;
   }).join('');
-  const rows = ranked.slice(start, end).map(i => {
+  const shown = markedOnly ? ranked : ranked.slice(start, end);
+  const rows = shown.map(([headword, i], position) => {
+    const marked = stars.has(headword);
+    if (markedOnly && !marked) return '';
     const word = getWord(i);
-    return `<li><strong lang="en">${esc(word.word)}</strong> <span class="sprint-list-meaning">${esc(word.meaning)}</span></li>`;
+    return `<li${markedOnly ? ` value="${position + 1}"` : ''}><strong lang="en">${esc(word.word)}</strong>
+      <span class="sprint-list-meaning">${esc(word.meaning)}</span>
+      <button class="sprint-star" type="button" aria-label="重点词 ${esc(word.word)}" aria-pressed="${marked}" title="${marked ? '取消重点' : '标为重点'}" onclick="sprintListToggleStar(${i},this)">${marked ? '★' : '☆'}</button></li>`;
   }).join('');
   return `<section class="sprint-list">
     <header class="sprint-list-header"><div><span class="kicker">CET-6 SPRINT</span><h2>高频词列表复习</h2></div>
       <button class="btn" onclick="sprintOpen()">逐词自测</button></header>
     <div class="sprint-list-controls">
-      <select aria-label="选择词表分组" onchange="sprintListGroup(Number(this.value))">
+      <select aria-label="选择词表分组" onchange="sprintListGroup(Number(this.value))"${markedOnly ? ' hidden' : ''}>
         ${options}<option value="0"${group === 0 ? ' selected' : ''}>全部 ${total} 词</option></select>
+      <button class="btn sprint-filter" id="sprintListFilter" aria-pressed="${markedOnly}" onclick="sprintListToggleFilter()">只看重点 <span id="sprintListStarCount">${stars.size}</span></button>
       <button class="btn primary" id="sprintListTranslation" aria-controls="sprintWordList" onclick="sprintListToggle()">${translations ? '隐藏翻译' : '显示翻译'}</button>
     </div>
-    <ol class="panel sprint-word-list" id="sprintWordList" start="${start + 1}" data-translations="${translations ? 'show' : 'hide'}">${rows}</ol>
+    <ol class="panel sprint-word-list" id="sprintWordList" start="${markedOnly ? 1 : start + 1}" data-translations="${translations ? 'show' : 'hide'}" data-marked-only="${markedOnly}"${rows ? '' : ' hidden'}>${rows}</ol>
+    <p class="panel empty" id="sprintListEmpty"${rows ? ' hidden' : ''}>还没有重点词。关闭「只看重点」，点单词旁边的 ☆ 添加。</p>
     <div class="quick-start-actions">
-      ${group > 1 ? `<button class="btn" onclick="sprintListGroup(${group - 1})">← 上一组</button>` : ''}
-      ${group > 0 && group < groups ? `<button class="btn primary" onclick="sprintListGroup(${group + 1})">下一组 →</button>` : ''}
+      ${!markedOnly && group > 1 ? `<button class="btn" onclick="sprintListGroup(${group - 1})">← 上一组</button>` : ''}
+      ${!markedOnly && group > 0 && group < groups ? `<button class="btn primary" onclick="sprintListGroup(${group + 1})">下一组 →</button>` : ''}
       <button class="btn" onclick="sprintLeave()">返回复习</button>
     </div></section>`;
 }
